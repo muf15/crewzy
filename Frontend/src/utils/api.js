@@ -41,10 +41,18 @@ api.interceptors.response.use(
 // API functions
 export const authAPI = {
   login: (credentials) => api.post('/auth/login', credentials),
-  register: (userData) => api.post('/auth/register', userData),
+  signup: (userData) => api.post('/auth/signup', userData),
   logout: () => api.post('/auth/logout'),
   refreshToken: () => api.post('/auth/refresh'),
   getCurrentUser: () => api.get('/auth/me'),
+};
+
+export const companyAPI = {
+  register: (companyData) => api.post('/company/register', companyData),
+  getAll: () => api.get('/companies'),
+  getById: (id) => api.get(`/companies/${id}`),
+  update: (id, data) => api.put(`/companies/${id}`, data),
+  delete: (id) => api.delete(`/companies/${id}`),
 };
 
 export const organizationAPI = {
