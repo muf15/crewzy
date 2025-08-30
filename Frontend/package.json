@@ -10,13 +10,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
-<<<<<<< HEAD
     "@radix-ui/react-label": "^2.1.7",
     "@radix-ui/react-slot": "^1.2.3",
-    "class-variance-authority": "^0.7.1",
-=======
     "axios": "^1.11.0",
->>>>>>> 7aea301c68fd99bc3609d4a4114ac2a7f13a1f51
+    "class-variance-authority": "^0.7.1",
     "framer-motion": "^12.23.12",
     "lucide-react": "^0.542.0",
     "react": "^18.3.1",

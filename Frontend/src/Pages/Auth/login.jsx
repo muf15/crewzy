@@ -1,5 +1,3 @@
-"use client"
-
 import {Link,useNavigate }from "react-router-dom"
 import { Button } from "../../Components/Login_ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../Components/Login_ui/card"
@@ -7,12 +5,12 @@ import { Input } from "../../Components/Login_ui/input"
 import { Label } from "../../Components/Login_ui/label"
 
 export default function Login() {
-  const router = useNavigate()
+  const navigate = useNavigate()
 
   function onSubmit(e) {
     e.preventDefault()
     // Demo navigation — after "login" go to dashboard
-    router.push("/dashboard")
+    navigate("/admin-dashboard")
   }
 
   return (
@@ -36,18 +34,18 @@ export default function Login() {
               Sign in
             </Button>
             <div className="mt-2 text-center text-xs text-muted-foreground">
-              <Link href="/dashboard" className="text-blue-700 hover:underline">
+              <Link to="/admin-dashboard" className="text-blue-700 hover:underline">
                 Skip and go to dashboard
               </Link>
             </div>
             {/* end change */}
             <div className="text-sm text-center text-muted-foreground">
               <span>New here? </span>
-              <Link href="/register/employer" className="text-blue-700 hover:underline">
+              <Link to="/employer" className="text-blue-700 hover:underline">
                 Employer registration
               </Link>
               <span> · </span>
-              <Link href="/register/organization" className="text-blue-700 hover:underline">
+              <Link to="/admin-registration" className="text-blue-700 hover:underline">
                 Organization registration
               </Link>
             </div>

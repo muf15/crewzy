@@ -1,17 +1,10 @@
 import React from 'react'
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import AdminRegistration from './Components/AdminForm/AdminRegistration';
-<<<<<<< HEAD
 import Login from "./Pages/Auth/login.jsx";
 import EmployerRegisterPage from './Pages/Employer_Register/Employer.jsx';
-=======
+import AdminDashboard from './Components/Dashboard/AdminDashboard.jsx';
 import Navbar from './Components/Navbar/Navbar';
-import AdminDashboard from './Components/Dashboard/AdminDashboard';
-import Login from './Components/Auth/Login';
-import ProtectedRoute from './components/ProtectedRoute';
-import { AuthProvider } from './context/AuthContext';
->>>>>>> 7aea301c68fd99bc3609d4a4114ac2a7f13a1f51
-
 const Home = () => (
   <div className="min-h-screen bg-gradient-to-br from-[#F4F7FF] via-[#FEFEFE] to-[#E3EAFE]">
     <Navbar />
@@ -66,7 +59,6 @@ const Demo = () => (
 
 const App = () => {
   return (
-<<<<<<< HEAD
     <Router>
       <Routes>
         <Route path="/" element={<Home />} />
@@ -74,28 +66,9 @@ const App = () => {
         <Route path="/admin-registration" element={<AdminRegistration />} />
         <Route path="/login" element={<Login />} />
         <Route path="/employer" element={<EmployerRegisterPage />} />
+        <Route path="/admin-dashboard" element={<AdminDashboard />} />
       </Routes>
     </Router>
-=======
-    <AuthProvider>
-      <Router>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/admin-registration" element={<AdminRegistration />} />
-          <Route path="/demo" element={<Demo />} />
-          <Route 
-            path="/admin-dashboard" 
-            element={
-              <ProtectedRoute>
-                <AdminDashboard />
-              </ProtectedRoute>
-            } 
-          />
-        </Routes>
-      </Router>
-    </AuthProvider>
->>>>>>> 7aea301c68fd99bc3609d4a4114ac2a7f13a1f51
   );
 }
 

@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Create axios instance
 const api = axios.create({
-  baseURL: process.env.VITE_API_BASE_URL || 'http://localhost:3000/api', // Your backend URL
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api', // Your backend URL
   timeout: 10000,
 });
 

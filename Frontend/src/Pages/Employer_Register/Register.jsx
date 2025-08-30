@@ -1,7 +1,4 @@
-"use client"
-
 import React from 'react';
-
 
 import { useNavigate } from "react-router-dom"
 import { Button } from "../../Components/Login_ui/button"
@@ -10,7 +7,7 @@ import { Input } from "../../Components/Login_ui/input"
 import { Label } from "../../Components/Login_ui/label"
 
 export function EmployerRegistered() {
-    const router = useNavigate()
+    const navigate = useNavigate()
 
     const onSubmit = (e) => {
         e.preventDefault();
