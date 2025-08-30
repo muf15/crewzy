@@ -30,6 +30,12 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ["office", "hybrid"],
   },
+  location: {
+    type: String,
+  },
+  skills:[{
+    type: String,
+  }]
 });
 
 const User = mongoose.model("User", userSchema);
