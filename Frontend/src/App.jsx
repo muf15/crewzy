@@ -1,6 +1,8 @@
 import React from 'react'
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import AdminRegistration from './Components/AdminForm/AdminRegistration';
+import Login from "./Pages/Auth/login.jsx";
+import EmployerRegisterPage from './Pages/Employer_Register/Employer.jsx';
 
 const Home = () => (
   <div className="min-h-screen bg-gradient-to-br from-[#F4F7FF] via-[#FEFEFE] to-[#E3EAFE] flex items-center justify-center">
@@ -49,6 +51,8 @@ const App = () => {
         <Route path="/" element={<Home />} />
         <Route path="/demo" element={<Demo />} />
         <Route path="/admin-registration" element={<AdminRegistration />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/employer" element={<EmployerRegisterPage />} />
       </Routes>
     </Router>
   );
