@@ -1,8 +1,13 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Trash2, Building, User, Mail, Lock, Phone, MapPin } from 'lucide-react';
+import { organizationAPI } from '../../utils/api';
+import { useNavigate } from 'react-router-dom';
+import Navbar from '../Navbar/Navbar';
 
 const AdminRegistration = () => {
+  const navigate = useNavigate();
+  
   // Organization state
   const [organizationData, setOrganizationData] = useState({
     name: '',
@@ -26,6 +31,7 @@ const AdminRegistration = () => {
   // Form validation state
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitMessage, setSubmitMessage] = useState({ type: '', text: '' });
 
   // Handle organization data changes
   const handleOrganizationChange = (field, value) => {
@@ -196,13 +202,15 @@ const AdminRegistration = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#F4F7FF] via-[#FEFEFE] to-[#E3EAFE] py-8 px-4">
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        className="max-w-4xl mx-auto"
-      >
+    <div className="min-h-screen bg-gradient-to-br from-[#F4F7FF] via-[#FEFEFE] to-[#E3EAFE]">
+      <Navbar />
+      <div className="py-8 px-4">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="max-w-4xl mx-auto"
+        >
         {/* Header */}
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
@@ -217,6 +225,20 @@ const AdminRegistration = () => {
         </motion.div>
 
         <form onSubmit={handleSubmit} className="space-y-8">
+          {/* Success/Error Message */}
+          {submitMessage.text && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`p-4 rounded-xl border ${
+                submitMessage.type === 'success' 
+                  ? 'bg-green-50 border-green-200 text-green-700' 
+                  : 'bg-red-50 border-red-200 text-red-700'
+              }`}
+            >
+              {submitMessage.text}
+            </motion.div>
+          )}
           {/* Organization Information Section */}
           <motion.div 
             initial={{ opacity: 0, x: -20 }}
@@ -526,6 +548,7 @@ const AdminRegistration = () => {
           </motion.div>
         </form>
       </motion.div>
+      </div>
     </div>
   );
 };
