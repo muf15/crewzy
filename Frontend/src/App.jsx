@@ -5,6 +5,7 @@ import Login from "./Pages/Auth/login.jsx";
 import EmployerRegisterPage from './Pages/Employer_Register/Employer.jsx';
 import AdminDashboard from './Components/Dashboard/AdminDashboard.jsx';
 import Navbar from './Components/Navbar/Navbar';
+import HybridEmployeeAdminPage from './Pages/Employer_Hybrid/Hybrid_Employer.jsx';
 const Home = () => (
   <div className="min-h-screen bg-gradient-to-br from-[#F4F7FF] via-[#FEFEFE] to-[#E3EAFE]">
     <Navbar />
@@ -67,6 +68,7 @@ const App = () => {
         <Route path="/login" element={<Login />} />
         <Route path="/employer" element={<EmployerRegisterPage />} />
         <Route path="/admin-dashboard" element={<AdminDashboard />} />
+        <Route path="/hybrid-employee-admin" element={<HybridEmployeeAdminPage />} />
       </Routes>
     </Router>
   );
