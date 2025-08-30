@@ -1,30 +1,35 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Trash2, Building, User, Mail, Lock, Phone, MapPin } from 'lucide-react';
-import { organizationAPI } from '../../utils/api';
+import { companyAPI, authAPI } from '../../utils/api';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../Navbar/Navbar';
 
 const AdminRegistration = () => {
   const navigate = useNavigate();
   
-  // Organization state
+  // Organization state - Updated to match backend companySchema
   const [organizationData, setOrganizationData] = useState({
     name: '',
-    type: '',
-    size: '',
-    website: '',
-    address: ''
+    industryType: '',
+    businessEmail: [''],
+    contactNos: [''],
+    companySize: '',
+    fullAddress: '',
+    workForceType: []
   });
 
-  // Admin users state
+  // Admin users state - Updated to match backend userSchema
   const [admins, setAdmins] = useState([
     {
       id: 1,
       name: '',
       email: '',
       password: '',
-      role: 'Admin'
+      role: 'admin', // Fixed to match backend enum
+      organization: '',
+      subRole: '',
+      workType: 'office' // Default value from enum
     }
   ]);
 
@@ -48,13 +53,89 @@ const AdminRegistration = () => {
     }
   };
 
+  // Handle email array changes
+  const handleEmailChange = (index, value) => {
+    const newEmails = [...organizationData.businessEmail];
+    newEmails[index] = value;
+    setOrganizationData(prev => ({
+      ...prev,
+      businessEmail: newEmails
+    }));
+  };
+
+  // Add new email field
+  const addEmailField = () => {
+    setOrganizationData(prev => ({
+      ...prev,
+      businessEmail: [...prev.businessEmail, '']
+    }));
+  };
+
+  // Remove email field
+  const removeEmailField = (index) => {
+    if (organizationData.businessEmail.length > 1) {
+      const newEmails = organizationData.businessEmail.filter((_, i) => i !== index);
+      setOrganizationData(prev => ({
+        ...prev,
+        businessEmail: newEmails
+      }));
+    }
+  };
+
+  // Handle contact number array changes
+  const handleContactChange = (index, value) => {
+    const newContacts = [...organizationData.contactNos];
+    newContacts[index] = value;
+    setOrganizationData(prev => ({
+      ...prev,
+      contactNos: newContacts
+    }));
+  };
+
+  // Add new contact field
+  const addContactField = () => {
+    setOrganizationData(prev => ({
+      ...prev,
+      contactNos: [...prev.contactNos, '']
+    }));
+  };
+
+  // Remove contact field
+  const removeContactField = (index) => {
+    if (organizationData.contactNos.length > 1) {
+      const newContacts = organizationData.contactNos.filter((_, i) => i !== index);
+      setOrganizationData(prev => ({
+        ...prev,
+        contactNos: newContacts
+      }));
+    }
+  };
+
+  // Handle workforce type changes
+  const handleWorkForceTypeChange = (type, checked) => {
+    if (checked) {
+      setOrganizationData(prev => ({
+        ...prev,
+        workForceType: [...prev.workForceType, type]
+      }));
+    } else {
+      setOrganizationData(prev => ({
+        ...prev,
+        workForceType: prev.workForceType.filter(t => t !== type)
+      }));
+    }
+  };
+
   const addAdmin = () => {
     const newAdmin = {
       id: Date.now(),
       name: '',
       email: '',
       password: '',
-      role: 'Admin'
+      role: 'admin',
+      organization: organizationData.name,
+      subRole: '',
+      workType: 'office'
     };
     setAdmins([...admins, newAdmin]);
   };
@@ -86,17 +167,37 @@ const AdminRegistration = () => {
     if (!organizationData.name.trim()) {
       newErrors.name = 'Organization name is required';
     }
-    if (!organizationData.type) {
-      newErrors.type = 'Industry type is required';
+    if (!organizationData.industryType) {
+      newErrors.industryType = 'Industry type is required';
     }
-    if (!organizationData.size) {
-      newErrors.size = 'Company size is required';
+    if (!organizationData.companySize) {
+      newErrors.companySize = 'Company size is required';
     }
-    if (!organizationData.address.trim()) {
-      newErrors.address = 'Address is required';
+    if (!organizationData.fullAddress.trim()) {
+      newErrors.fullAddress = 'Address is required';
     }
-    if (organizationData.website && !isValidUrl(organizationData.website)) {
-      newErrors.website = 'Please enter a valid URL';
+    
+    // Validate business emails
+    organizationData.businessEmail.forEach((email, index) => {
+      if (!email.trim()) {
+        newErrors[`businessEmail_${index}`] = 'Business email is required';
+      } else if (!isValidEmail(email)) {
+        newErrors[`businessEmail_${index}`] = 'Please enter a valid email';
+      }
+    });
+
+    // Validate contact numbers
+    organizationData.contactNos.forEach((contact, index) => {
+      if (!contact.trim()) {
+        newErrors[`contactNos_${index}`] = 'Contact number is required';
+      } else if (!/^\d{10}$/.test(contact.replace(/\D/g, ''))) {
+        newErrors[`contactNos_${index}`] = 'Please enter a valid 10-digit phone number';
+      }
+    });
+
+    // Validate workforce type
+    if (organizationData.workForceType.length === 0) {
+      newErrors.workForceType = 'Please select at least one workforce type';
     }
 
     // Validate admin data
@@ -113,6 +214,9 @@ const AdminRegistration = () => {
         newErrors[`admin_${admin.id}_password`] = 'Password is required';
       } else if (admin.password.length < 6) {
         newErrors[`admin_${admin.id}_password`] = 'Password must be at least 6 characters';
+      }
+      if (!admin.subRole.trim()) {
+        newErrors[`admin_${admin.id}_subRole`] = 'Sub role is required';
       }
     });
 
@@ -134,7 +238,7 @@ const AdminRegistration = () => {
     }
   };
 
-  // Handle form submission - READY FOR BACKEND INTEGRATION
+  // Handle form submission - BACKEND INTEGRATION IMPLEMENTED
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -143,59 +247,69 @@ const AdminRegistration = () => {
     }
 
     setIsSubmitting(true);
-
-    // Prepare data for API call
-    const apiPayload = {
-      organization: {
-        name: organizationData.name.trim(),
-        industry_type: organizationData.type,
-        company_size: organizationData.size,
-        website: organizationData.website.trim() || null,
-        full_address: organizationData.address.trim()
-      },
-      admins: admins.map(admin => ({
-        name: admin.name.trim(),
-        email: admin.email.trim().toLowerCase(),
-        password: admin.password,
-        role: admin.role,
-        organization_name: organizationData.name.trim() // Auto-filled
-      }))
-    };
+    setSubmitMessage({ type: '', text: '' });
 
     try {
-      // TODO: Replace with actual API endpoint
-      console.log('=== READY FOR BACKEND INTEGRATION ===');
-      console.log('API Payload:', JSON.stringify(apiPayload, null, 2));
-      
-      // Example API call structure:
-      /*
-      const response = await fetch('/api/organizations/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(apiPayload)
+      // Step 1: Register the company first
+      const companyPayload = {
+        name: organizationData.name.trim(),
+        industryType: organizationData.industryType,
+        businessEmail: organizationData.businessEmail.filter(email => email.trim()),
+        contactNos: organizationData.contactNos.filter(contact => contact.trim()),
+        companySize: organizationData.companySize,
+        fullAddress: organizationData.fullAddress.trim(),
+        workForceType: organizationData.workForceType
+      };
+
+      console.log('Registering company:', companyPayload);
+      const companyResponse = await companyAPI.register(companyPayload);
+      console.log('Company registered successfully:', companyResponse.data);
+
+      // Step 2: Register admins one by one using Promise.all for parallel execution
+      const adminPromises = admins.map(async (admin) => {
+        const adminPayload = {
+          name: admin.name.trim(),
+          email: admin.email.trim().toLowerCase(),
+          password: admin.password,
+          role: 'admin', // Fixed to match backend enum
+          organization: organizationData.name.trim(),
+          subRole: admin.subRole.trim(),
+          workType: admin.workType
+        };
+
+        console.log('Registering admin:', adminPayload);
+        return authAPI.signup(adminPayload);
       });
 
-      if (!response.ok) {
-        throw new Error('Registration failed');
-      }
+      // Execute all admin registrations
+      const adminResponses = await Promise.all(adminPromises);
+      console.log('All admins registered successfully:', adminResponses.map(r => r.data));
 
-      const result = await response.json();
-      console.log('Registration successful:', result);
-      
-      // Redirect to success page or dashboard
-      // navigate('/dashboard');
-      */
+      setSubmitMessage({
+        type: 'success',
+        text: `✅ Registration successful! Company and ${admins.length} admin(s) registered successfully.`
+      });
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      alert('✅ Registration successful! (This is a demo - connect to your backend API)');
-      
+      // Reset form after successful submission
+      setTimeout(() => {
+        navigate('/admin-dashboard');
+      }, 2000);
+
     } catch (error) {
       console.error('Registration error:', error);
-      alert('❌ Registration failed. Please try again.');
+      
+      let errorMessage = 'Registration failed. Please try again.';
+      
+      if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      setSubmitMessage({
+        type: 'error',
+        text: `❌ ${errorMessage}`
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -276,20 +390,20 @@ const AdminRegistration = () => {
                 {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
               </motion.div>
 
-              {/* Industry/Type */}
+              {/* Industry Type */}
               <motion.div 
                 whileHover={{ scale: 1.02 }}
                 transition={{ type: "spring", stiffness: 300 }}
                 className="space-y-2"
               >
                 <label className="block text-sm font-semibold text-[#4786FA] mb-2">
-                  Industry/Type *
+                  Industry Type *
                 </label>
                 <select
-                  value={organizationData.type}
-                  onChange={(e) => handleOrganizationChange('type', e.target.value)}
+                  value={organizationData.industryType}
+                  onChange={(e) => handleOrganizationChange('industryType', e.target.value)}
                   className={`w-full px-4 py-4 bg-[#F4F7FF] border-2 rounded-2xl focus:outline-none transition-all duration-300 text-[#4786FA] ${
-                    errors.type ? 'border-red-500' : 'border-[#E2E9F9] focus:border-[#4786FA]'
+                    errors.industryType ? 'border-red-500' : 'border-[#E2E9F9] focus:border-[#4786FA]'
                   }`}
                   required
                 >
@@ -300,12 +414,13 @@ const AdminRegistration = () => {
                   <option value="education">Education</option>
                   <option value="retail">Retail</option>
                   <option value="manufacturing">Manufacturing</option>
+                  <option value="consulting">Consulting</option>
                   <option value="other">Other</option>
                 </select>
-                {errors.type && <p className="text-red-500 text-sm mt-1">{errors.type}</p>}
+                {errors.industryType && <p className="text-red-500 text-sm mt-1">{errors.industryType}</p>}
               </motion.div>
 
-              {/* Business Category/Content Area */}
+              {/* Company Size */}
               <motion.div 
                 whileHover={{ scale: 1.02 }}
                 transition={{ type: "spring", stiffness: 300 }}
@@ -315,10 +430,10 @@ const AdminRegistration = () => {
                   Company Size *
                 </label>
                 <select
-                  value={organizationData.size}
-                  onChange={(e) => handleOrganizationChange('size', e.target.value)}
+                  value={organizationData.companySize}
+                  onChange={(e) => handleOrganizationChange('companySize', e.target.value)}
                   className={`w-full px-4 py-4 bg-[#F4F7FF] border-2 rounded-2xl focus:outline-none transition-all duration-300 text-[#4786FA] ${
-                    errors.size ? 'border-red-500' : 'border-[#E2E9F9] focus:border-[#4786FA]'
+                    errors.companySize ? 'border-red-500' : 'border-[#E2E9F9] focus:border-[#4786FA]'
                   }`}
                   required
                 >
@@ -329,30 +444,132 @@ const AdminRegistration = () => {
                   <option value="201-500">201-500 employees</option>
                   <option value="500+">500+ employees</option>
                 </select>
-                {errors.size && <p className="text-red-500 text-sm mt-1">{errors.size}</p>}
+                {errors.companySize && <p className="text-red-500 text-sm mt-1">{errors.companySize}</p>}
               </motion.div>
 
-              {/* Website Type */}
+              {/* Workforce Type */}
               <motion.div 
                 whileHover={{ scale: 1.02 }}
                 transition={{ type: "spring", stiffness: 300 }}
                 className="space-y-2"
               >
                 <label className="block text-sm font-semibold text-[#4786FA] mb-2">
-                  Website (Optional)
+                  Workforce Type *
                 </label>
-                <input
-                  type="url"
-                  value={organizationData.website}
-                  onChange={(e) => handleOrganizationChange('website', e.target.value)}
-                  className={`w-full px-4 py-4 bg-[#F4F7FF] border-2 rounded-2xl focus:outline-none transition-all duration-300 text-[#4786FA] placeholder-[#D1DFFA] ${
-                    errors.website ? 'border-red-500' : 'border-[#E2E9F9] focus:border-[#4786FA]'
-                  }`}
-                  placeholder="https://example.com"
-                />
-                {errors.website && <p className="text-red-500 text-sm mt-1">{errors.website}</p>}
+                <div className="space-y-2">
+                  {['remote', 'office', 'hybrid', 'contract', 'freelance'].map((type) => (
+                    <label key={type} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={organizationData.workForceType.includes(type)}
+                        onChange={(e) => handleWorkForceTypeChange(type, e.target.checked)}
+                        className="rounded border-[#E2E9F9] text-[#4786FA] focus:ring-[#4786FA]"
+                      />
+                      <span className="text-[#4786FA] capitalize">{type}</span>
+                    </label>
+                  ))}
+                </div>
+                {errors.workForceType && <p className="text-red-500 text-sm mt-1">{errors.workForceType}</p>}
               </motion.div>
             </div>
+
+            {/* Business Emails */}
+            <motion.div 
+              whileHover={{ scale: 1.01 }}
+              transition={{ type: "spring", stiffness: 300 }}
+              className="mt-6 space-y-2"
+            >
+              <div className="flex items-center justify-between">
+                <label className="block text-sm font-semibold text-[#4786FA] mb-2">
+                  <Mail className="inline w-4 h-4 mr-1" />
+                  Business Email(s) *
+                </label>
+                <button
+                  type="button"
+                  onClick={addEmailField}
+                  className="text-[#4786FA] hover:text-[#3B75E8] transition-colors"
+                >
+                  <Plus className="w-5 h-5" />
+                </button>
+              </div>
+              {organizationData.businessEmail.map((email, index) => (
+                <div key={index} className="flex gap-2">
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => handleEmailChange(index, e.target.value)}
+                    className={`flex-1 px-4 py-3 bg-[#F4F7FF] border-2 rounded-2xl focus:outline-none transition-all duration-300 text-[#4786FA] placeholder-[#D1DFFA] ${
+                      errors[`businessEmail_${index}`] ? 'border-red-500' : 'border-[#E2E9F9] focus:border-[#4786FA]'
+                    }`}
+                    placeholder="business@company.com"
+                    required
+                  />
+                  {organizationData.businessEmail.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeEmailField(index)}
+                      className="text-red-500 hover:text-red-700 transition-colors p-2"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  )}
+                </div>
+              ))}
+              {organizationData.businessEmail.some((_, index) => errors[`businessEmail_${index}`]) && (
+                <p className="text-red-500 text-sm mt-1">
+                  {Object.keys(errors).filter(key => key.startsWith('businessEmail_')).map(key => errors[key])[0]}
+                </p>
+              )}
+            </motion.div>
+
+            {/* Contact Numbers */}
+            <motion.div 
+              whileHover={{ scale: 1.01 }}
+              transition={{ type: "spring", stiffness: 300 }}
+              className="mt-6 space-y-2"
+            >
+              <div className="flex items-center justify-between">
+                <label className="block text-sm font-semibold text-[#4786FA] mb-2">
+                  <Phone className="inline w-4 h-4 mr-1" />
+                  Contact Number(s) *
+                </label>
+                <button
+                  type="button"
+                  onClick={addContactField}
+                  className="text-[#4786FA] hover:text-[#3B75E8] transition-colors"
+                >
+                  <Plus className="w-5 h-5" />
+                </button>
+              </div>
+              {organizationData.contactNos.map((contact, index) => (
+                <div key={index} className="flex gap-2">
+                  <input
+                    type="tel"
+                    value={contact}
+                    onChange={(e) => handleContactChange(index, e.target.value)}
+                    className={`flex-1 px-4 py-3 bg-[#F4F7FF] border-2 rounded-2xl focus:outline-none transition-all duration-300 text-[#4786FA] placeholder-[#D1DFFA] ${
+                      errors[`contactNos_${index}`] ? 'border-red-500' : 'border-[#E2E9F9] focus:border-[#4786FA]'
+                    }`}
+                    placeholder="+1 (555) 123-4567"
+                    required
+                  />
+                  {organizationData.contactNos.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeContactField(index)}
+                      className="text-red-500 hover:text-red-700 transition-colors p-2"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  )}
+                </div>
+              ))}
+              {organizationData.contactNos.some((_, index) => errors[`contactNos_${index}`]) && (
+                <p className="text-red-500 text-sm mt-1">
+                  {Object.keys(errors).filter(key => key.startsWith('contactNos_')).map(key => errors[key])[0]}
+                </p>
+              )}
+            </motion.div>
 
             {/* Full Address */}
             <motion.div 
@@ -365,16 +582,16 @@ const AdminRegistration = () => {
                 Full Address *
               </label>
               <textarea
-                value={organizationData.address}
-                onChange={(e) => handleOrganizationChange('address', e.target.value)}
+                value={organizationData.fullAddress}
+                onChange={(e) => handleOrganizationChange('fullAddress', e.target.value)}
                 rows={3}
                 className={`w-full px-4 py-4 bg-[#F4F7FF] border-2 rounded-2xl focus:outline-none transition-all duration-300 text-[#4786FA] placeholder-[#D1DFFA] resize-none ${
-                  errors.address ? 'border-red-500' : 'border-[#E2E9F9] focus:border-[#4786FA]'
+                  errors.fullAddress ? 'border-red-500' : 'border-[#E2E9F9] focus:border-[#4786FA]'
                 }`}
                 placeholder="Enter complete organization address"
                 required
               />
-              {errors.address && <p className="text-red-500 text-sm mt-1">{errors.address}</p>}
+              {errors.fullAddress && <p className="text-red-500 text-sm mt-1">{errors.fullAddress}</p>}
             </motion.div>
           </motion.div>
 
@@ -494,6 +711,49 @@ const AdminRegistration = () => {
                         required
                       />
                       {errors[`admin_${admin.id}_password`] && <p className="text-red-500 text-sm mt-1">{errors[`admin_${admin.id}_password`]}</p>}
+                    </motion.div>
+
+                    {/* Sub Role */}
+                    <motion.div 
+                      whileHover={{ scale: 1.02 }}
+                      transition={{ type: "spring", stiffness: 300 }}
+                    >
+                      <label className="block text-sm font-semibold text-[#4786FA] mb-2">
+                        Sub Role *
+                      </label>
+                      <input
+                        type="text"
+                        value={admin.subRole}
+                        onChange={(e) => updateAdmin(admin.id, 'subRole', e.target.value)}
+                        className={`w-full px-4 py-3 bg-[#FFFFFF] border-2 rounded-xl focus:outline-none transition-all duration-300 text-[#4786FA] placeholder-[#D1DFFA] ${
+                          errors[`admin_${admin.id}_subRole`] ? 'border-red-500' : 'border-[#E2E9F9] focus:border-[#4786FA]'
+                        }`}
+                        placeholder="e.g., CEO, CTO, Manager"
+                        required
+                      />
+                      {errors[`admin_${admin.id}_subRole`] && <p className="text-red-500 text-sm mt-1">{errors[`admin_${admin.id}_subRole`]}</p>}
+                    </motion.div>
+
+                    {/* Work Type */}
+                    <motion.div 
+                      whileHover={{ scale: 1.02 }}
+                      transition={{ type: "spring", stiffness: 300 }}
+                    >
+                      <label className="block text-sm font-semibold text-[#4786FA] mb-2">
+                        Work Type *
+                      </label>
+                      <select
+                        value={admin.workType}
+                        onChange={(e) => updateAdmin(admin.id, 'workType', e.target.value)}
+                        className={`w-full px-4 py-3 bg-[#FFFFFF] border-2 rounded-xl focus:outline-none transition-all duration-300 text-[#4786FA] ${
+                          errors[`admin_${admin.id}_workType`] ? 'border-red-500' : 'border-[#E2E9F9] focus:border-[#4786FA]'
+                        }`}
+                        required
+                      >
+                        <option value="office">Office</option>
+                        <option value="hybrid">Hybrid</option>
+                      </select>
+                      {errors[`admin_${admin.id}_workType`] && <p className="text-red-500 text-sm mt-1">{errors[`admin_${admin.id}_workType`]}</p>}
                     </motion.div>
 
                     {/* Organization (Auto-filled) */}
