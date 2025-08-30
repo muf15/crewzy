@@ -1,0 +1,48 @@
+# Node.js dependencies
+/node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg
+*.egg-info/
+*.manifest
+*.spec
+/.pytest_cache/
+.mypy_cache/
+.pytest_cache/
+.dmypy.json
+.pyre/
+
+# Virtual environment
+venv/
+.env.local/
+.venv/
+env/
+ENV/
+
+# Environment variables
+/.env
+
+# Logs
+logs
+*.log
+
+# Compiled source
+*.out
+*.o
+*.class
+
+# Editor stuff
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
