@@ -1,5 +1,6 @@
 import express from 'express';
-import companyRoutes from './company.js'
+import companyRoutes from './company.js';
+import authRoutes from './auth.js'
 const router = express.Router();
 
 // Example route
@@ -8,5 +9,6 @@ router.get('/', (req, res) => {
 });
 
 router.use('/company', companyRoutes);
+router.use('/auth', authRoutes);
 
 export default router;
