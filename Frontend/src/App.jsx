@@ -1,35 +1,57 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React from 'react'
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import AdminRegistration from './Components/AdminForm/AdminRegistration';
 
-function App() {
-  const [count, setCount] = useState(0)
+const Home = () => (
+  <div className="min-h-screen bg-gradient-to-br from-[#F4F7FF] via-[#FEFEFE] to-[#E3EAFE] flex items-center justify-center">
+    <div className="text-center">
+      <h1 className="text-4xl font-bold text-[#4786FA] mb-4">
+        Welcome to Crewzy
+      </h1>
+      <p className="text-[#4786FA] text-lg mb-8">Your organization management platform</p>
+      <div className="space-x-4">
+        <Link 
+          to="/admin-registration" 
+          className="bg-[#4786FA] text-white px-6 py-3 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 inline-block hover:bg-[#3B75E8]"
+        >
+          Admin Registration
+        </Link>
+        <Link 
+          to="/demo" 
+          className="bg-[#FFFFFF] text-[#4786FA] border-2 border-[#4786FA] px-6 py-3 rounded-2xl font-semibold hover:bg-[#F4F7FF] transition-all duration-300 inline-block"
+        >
+          Demo
+        </Link>
+      </div>
+    </div>
+  </div>
+);
 
+const Demo = () => (
+  <div className="min-h-screen bg-gradient-to-br from-[#F4F7FF] via-[#FEFEFE] to-[#E3EAFE] flex items-center justify-center">
+    <div className="text-center">
+      <h1 className="text-3xl font-bold text-[#4786FA] mb-4">Demo Component</h1>
+      <p className="text-[#4786FA] mb-8">This is a demo route for testing React components.</p>
+      <Link 
+        to="/" 
+        className="bg-[#4786FA] text-white px-6 py-3 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 inline-block hover:bg-[#3B75E8]"
+      >
+        Back to Home
+      </Link>
+    </div>
+  </div>
+);
+
+const App = () => {
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <Router>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/demo" element={<Demo />} />
+        <Route path="/admin-registration" element={<AdminRegistration />} />
+      </Routes>
+    </Router>
+  );
 }
 
 export default App
