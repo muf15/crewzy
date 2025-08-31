@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg
+*.egg-info/
+*.manifest
+*.spec
+/.pytest_cache/
+.mypy_cache/
+.pytest_cache/
+.dmypy.json
+.pyre/
+
+# Virtual environment
+venv/
+.env.local/
+.venv/
+env/
+ENV/
+*.DS_Store*
+# Environment variables
+/.env
