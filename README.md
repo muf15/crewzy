@@ -1,10 +1,3 @@
-
-# make the readme.md of this
-
-Below is a tailored **README.md** for the Crewzy project, based on the PDF overview and inferred requirements for a modern open-source workforce management app powered by Mappls APIs.[^1]
-
-***
-
 # Crewzy
 
 **Crewzy** is a smart workforce management web application designed to simplify task management, attendance, team workflows, and optimize operations with real-time insights. Powered by Mappls APIs, Crewzy integrates attendance, tasking, employee tracking, and productivity dashboards—all in a single platform.
