@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom"
 import TaskForm from "../Admin_ui/task-form"
 import TaskList from "../Admin_ui/task-list"
 import TaskMap from "../Admin_ui/task-map"
+import { getAddressFromCoordinates } from "../../utils/locationUtils"
 
 export default function AdminTaskManagementPage() {
   const { user, token, isLoading } = useAuth()
@@ -109,19 +110,96 @@ export default function AdminTaskManagementPage() {
     }
   }, [token])
 
-  const onPickLocation = useCallback((loc) => {
-    setSelectedLocation(loc)
+  const onPickLocation = useCallback(async (loc) => {
+    try {
+      // First set the basic location immediately for UI responsiveness
+      const basicLocation = {
+        lat: loc.lat,
+        lng: loc.lng,
+        coordinates: [loc.lng, loc.lat], // Backend expects [longitude, latitude]
+        fullAddress: `Loading address for: ${loc.lat.toFixed(6)}, ${loc.lng.toFixed(6)}`,
+        pincode: "",
+        eLoc: ""
+      }
+      setSelectedLocation(basicLocation)
+      setFocused({ coordinates: [loc.lng, loc.lat] })
+
+      // Then fetch complete address details including eLoc
+      const addressData = await getAddressFromCoordinates(loc.lat, loc.lng)
+      
+      // Update with complete address information
+      const completeLocation = {
+        lat: loc.lat,
+        lng: loc.lng,
+        coordinates: addressData.coordinates, // Already in backend format [lng, lat]
+        fullAddress: addressData.fullAddress,
+        pincode: addressData.pincode,
+        eLoc: addressData.eLoc
+      }
+      setSelectedLocation(completeLocation)
+      
+    } catch (error) {
+      console.error("Error fetching address details:", error)
+      // Keep the basic location if address fetch fails
+      const fallbackLocation = {
+        lat: loc.lat,
+        lng: loc.lng,
+        coordinates: [loc.lng, loc.lat],
+        fullAddress: `Map Location: ${loc.lat.toFixed(6)}, ${loc.lng.toFixed(6)}`,
+        pincode: "",
+        eLoc: ""
+      }
+      setSelectedLocation(fallbackLocation)
+    }
   }, [])
 
-  const onUseMyLocation = useCallback(() => {
+  const onUseMyLocation = useCallback(async () => {
     if (!navigator.geolocation) return
+    
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude }
-        setSelectedLocation(loc)
-        setFocused({ location: loc })
+      async (pos) => {
+        try {
+          // First set basic location for immediate UI feedback
+          const basicLoc = { 
+            lat: pos.coords.latitude, 
+            lng: pos.coords.longitude,
+            coordinates: [pos.coords.longitude, pos.coords.latitude], // Backend format
+            fullAddress: `Loading current location: ${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}`,
+            pincode: "",
+            eLoc: ""
+          }
+          setSelectedLocation(basicLoc)
+          setFocused({ coordinates: [pos.coords.longitude, pos.coords.latitude] })
+
+          // Then fetch complete address details
+          const addressData = await getAddressFromCoordinates(pos.coords.latitude, pos.coords.longitude)
+          
+          const completeLoc = {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            coordinates: addressData.coordinates, // Already in backend format
+            fullAddress: addressData.fullAddress,
+            pincode: addressData.pincode,
+            eLoc: addressData.eLoc
+          }
+          setSelectedLocation(completeLoc)
+          
+        } catch (error) {
+          console.error("Error fetching current location address:", error)
+          // Keep basic location if address fetch fails
+          const fallbackLoc = { 
+            lat: pos.coords.latitude, 
+            lng: pos.coords.longitude,
+            coordinates: [pos.coords.longitude, pos.coords.latitude],
+            fullAddress: `Current Location: ${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}`,
+            pincode: "",
+            eLoc: ""
+          }
+          setSelectedLocation(fallbackLoc)
+        }
       },
-      () => {
+      (error) => {
+        console.error("Geolocation error:", error)
         // ignore errors silently for now
       },
     )
@@ -202,8 +280,19 @@ export default function AdminTaskManagementPage() {
               <div className="rounded-xl border border-[#E2E9F9] bg-[#F4F7FF] p-3">
                 <h3 className="text-sm font-semibold text-[#1f2a44]">Map Preview</h3>
                 <p className="text-xs text-[#4b587c]">
-                  Markers show existing tasks; orange marker indicates the new task location.
+                  Click on the map to select task location. Orange marker indicates the selected location.
                 </p>
+                {selectedLocation && (
+                  <div className="mt-2 p-2 bg-white rounded border border-[#E2E9F9]">
+                    <p className="text-xs font-medium text-[#1f2a44]">Selected Location:</p>
+                    <p className="text-xs text-[#4b587c]">
+                      Lat: {selectedLocation.lat?.toFixed(6)}, Lng: {selectedLocation.lng?.toFixed(6)}
+                    </p>
+                    <p className="text-xs text-[#4b587c]">
+                      Backend Format: [{selectedLocation.coordinates?.[0]?.toFixed(6)}, {selectedLocation.coordinates?.[1]?.toFixed(6)}]
+                    </p>
+                  </div>
+                )}
               </div>
               <TaskMap tasks={tasks} tempLocation={selectedLocation} onPickLocation={onPickLocation} focus={focused} />
             </div>

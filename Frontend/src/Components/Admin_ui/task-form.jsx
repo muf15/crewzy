@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { getCurrentLocation, getAddressFromCoordinates } from "../../utils/locationUtils"
+import { useState, useEffect } from "react"
+import { getCurrentLocation, getAddressFromCoordinates, getElocFromCoordinates } from "../../utils/locationUtils"
 
 export default function TaskForm({ onAdd, selectedLocation, onUseMyLocation }) {
   const [formData, setFormData] = useState({
@@ -17,6 +17,19 @@ export default function TaskForm({ onAdd, selectedLocation, onUseMyLocation }) {
   const [locationLoading, setLocationLoading] = useState(false)
   const [errors, setErrors] = useState({})
   const [submitLoading, setSubmitLoading] = useState(false)
+
+  // Update form data when location is selected from map
+  useEffect(() => {
+    if (selectedLocation && selectedLocation.coordinates) {
+      setFormData(prev => ({
+        ...prev,
+        fullAddress: selectedLocation.fullAddress || `Map Location: ${selectedLocation.lat.toFixed(6)}, ${selectedLocation.lng.toFixed(6)}`,
+        pincode: selectedLocation.pincode || "",
+        eLoc: selectedLocation.eLoc || "",
+        coordinates: selectedLocation.coordinates
+      }))
+    }
+  }, [selectedLocation])
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -202,8 +215,13 @@ export default function TaskForm({ onAdd, selectedLocation, onUseMyLocation }) {
             <div>
               <p className="text-sm font-medium text-[#1f2a44]">Task Location *</p>
               <p className="text-xs text-[#4b587c]">
-                Use current location to automatically fill address details.
+                Click on the map or use current location to set coordinates.
               </p>
+              {formData.coordinates.length === 2 && (
+                <p className="text-xs text-green-600 mt-1">
+                  Coordinates: [{formData.coordinates[0].toFixed(6)}, {formData.coordinates[1].toFixed(6)}]
+                </p>
+              )}
             </div>
             <button
               type="button"

@@ -53,6 +53,51 @@ export const getCurrentLocation = () => {
   });
 };
 
+// Get eLoc (Mappls 6-digit code) from coordinates using Mappls API
+export const getElocFromCoordinates = async (latitude, longitude) => {
+  try {
+    console.log("Fetching eLoc for coordinates:", { latitude, longitude });
+
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+    const url = `${API_BASE_URL}/location/reverse-geocode?lat=${latitude}&lng=${longitude}`;
+
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(
+        `Backend API error: ${response.status} - ${response.statusText}`
+      );
+    }
+
+    const data = await response.json();
+    console.log("eLoc API response:", data);
+
+    if (data && data.results && data.results.length > 0) {
+      const result = data.results[0];
+
+      // Extract eLoc (6-digit Mappls code) - check multiple possible fields
+      const eLoc =
+        result.eLoc ||
+        result.eloc ||
+        result.code ||
+        result.placeid ||
+        result.place_id ||
+        result.mapplsPin ||
+        result.mappls_pin ||
+        result.geohash ||
+        "";
+
+      console.log("Found eLoc:", eLoc);
+      return eLoc;
+    }
+
+    return "";
+  } catch (error) {
+    console.error("eLoc fetch error:", error);
+    return ""; // Return empty string if eLoc fetch fails
+  }
+};
+
 // Get address from coordinates using backend proxy to Mappls API
 export const getAddressFromCoordinates = async (latitude, longitude) => {
   try {
@@ -89,6 +134,7 @@ export const getAddressFromCoordinates = async (latitude, longitude) => {
         result.place_id ||
         result.mapplsPin ||
         result.mappls_pin ||
+        result.geohash ||
         "";
 
       // Look for pincode in various possible fields
@@ -124,6 +170,12 @@ export const getAddressFromCoordinates = async (latitude, longitude) => {
         ].filter((component) => component && component.trim() !== "");
 
         fullAddress = addressComponents.join(", ");
+      }
+
+      // If eLoc is still empty, try to get it separately
+      if (!eLoc) {
+        console.log("eLoc not found in reverse geocode, trying dedicated eLoc fetch...");
+        eLoc = await getElocFromCoordinates(latitude, longitude);
       }
     } else {
       throw new Error(
