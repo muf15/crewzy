@@ -8,8 +8,9 @@ import HybridEmployeeAdminPage from './Components/Hybrid/Employeehybrid.jsx';
 import Navbar from './Components/Navbar/Navbar';
 import AIAdmin from './Components/AIBOT/AIAdmin.jsx';
 import HeroLanding from './Components/Landing/HeroLanding.jsx';
-
+import AdminTaskManagementPage from './Components/Admin-task-management/AdminTaskManagementPage.jsx';
 import UserLocation from './Components/AdminForm/UserLocation.jsx';
+import OfficeEmployeePage from './Components/Office_Employee/OfficeEmployeePage.jsx';
 const Home = () => (
   <div className="min-h-screen">
     <HeroLanding />
@@ -75,7 +76,10 @@ const App = () => {
         <Route path="/login" element={<Login />} />
         <Route path="/employer" element={<EmployerRegisterPage />} />
         <Route path="/admin-dashboard" element={<AdminDashboard />} />
-        <Route path="/hybrid-employee-admin" element={<HybridEmployeeAdminPage />} />
+        <Route path="/hybrid" element={<HybridEmployeeAdminPage />} />
+        <Route path="/admin-task" element={<AdminTaskManagementPage />} />
+        <Route path="/office" element={<OfficeEmployeePage />} />
+        
       
        
       </Routes>

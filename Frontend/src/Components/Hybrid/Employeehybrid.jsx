@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from "react-router-dom"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Calendar, 
@@ -14,9 +14,13 @@ import {
   User,
   Target,
   TrendingUp,
-  Activity
+  Activity,
+  MapPin,
+  Navigation
 } from 'lucide-react';
 import AIAdmin from '../AIBOT/AIAdmin.jsx';
+// Import the map components
+import { Map, Marker } from 'pigeon-maps';
 
 const StatusBadge = ({ status }) => {
   const map = {
@@ -51,6 +55,43 @@ const ProgressBar = ({ value }) => {
     </div>
   )
 }
+
+// Geolocation utility functions
+const getCurrentLocation = () => {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('Geolocation is not supported by this browser'));
+      return;
+    }
+    
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        });
+      },
+      (error) => {
+        reject(error);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
+  });
+};
+
+// Calculate distance between two coordinates using Haversine formula
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
+  const R = 6371; // Earth's radius in kilometers
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const distance = R * c;
+  return distance; // in kilometers
+};
 
 function AttendanceCard() {
   const [month] = useState("April 2025")
@@ -185,6 +226,8 @@ function TaskListCard() {
       progress: 40,
       status: "In Progress",
       priority: "Medium",
+      location: { lat: 40.7128, lng: -74.0060 }, // New York
+      completedLocation: null,
     },
     {
       id: 2,
@@ -194,6 +237,8 @@ function TaskListCard() {
       progress: 10,
       status: "Pending",
       priority: "High",
+      location: { lat: 34.0522, lng: -118.2437 }, // Los Angeles
+      completedLocation: null,
     },
     {
       id: 3,
@@ -203,10 +248,17 @@ function TaskListCard() {
       progress: 90,
       status: "In Progress",
       priority: "Low",
+      location: null,
+      completedLocation: null,
     },
-  ])
-  const [title, setTitle] = useState("")
-  const [due, setDue] = useState("")
+  ]);
+  const [title, setTitle] = useState("");
+  const [due, setDue] = useState("");
+  const [showLocationModal, setShowLocationModal] = useState(false);
+  const [currentTaskId, setCurrentTaskId] = useState(null);
+  const [currentLocation, setCurrentLocation] = useState(null);
+  const [locationError, setLocationError] = useState("");
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
 
   const addTask = () => {
     const t = title.trim()
@@ -220,6 +272,8 @@ function TaskListCard() {
         progress: 0,
         status: "Pending",
         priority: "Medium",
+        location: null,
+        completedLocation: null,
       },
       ...prev,
     ])
@@ -227,7 +281,17 @@ function TaskListCard() {
     setDue("")
   }
 
-  const toggleDone = (id) => {
+  const toggleDone = async (id) => {
+    const task = tasks.find(t => t.id === id);
+    
+    // If task has a location but no completed location, open modal to capture location
+    if (task && task.location && !task.completedLocation && task.status !== "Done") {
+      setCurrentTaskId(id);
+      setShowLocationModal(true);
+      return;
+    }
+    
+    // Otherwise, just toggle the status
     setTasks((prev) =>
       prev.map((t) =>
         t.id === id
@@ -236,6 +300,45 @@ function TaskListCard() {
       ),
     )
   }
+
+  const getCurrentLocationForTask = async () => {
+    setIsGettingLocation(true);
+    setLocationError("");
+    
+    try {
+      const location = await getCurrentLocation();
+      setCurrentLocation(location);
+    } catch (error) {
+      console.error("Error getting location:", error);
+      setLocationError("Failed to get your location. Please ensure location services are enabled.");
+    } finally {
+      setIsGettingLocation(false);
+    }
+  };
+
+  const confirmTaskCompletion = () => {
+    if (!currentLocation) {
+      setLocationError("Please get your current location first");
+      return;
+    }
+    
+    setTasks(prev => prev.map(task => {
+      if (task.id === currentTaskId) {
+        return {
+          ...task,
+          status: "Done",
+          progress: 100,
+          completedLocation: currentLocation
+        };
+      }
+      return task;
+    }));
+    
+    setShowLocationModal(false);
+    setCurrentTaskId(null);
+    setCurrentLocation(null);
+    setLocationError("");
+  };
 
   const getPriorityColor = (priority) => {
     switch(priority) {
@@ -327,9 +430,50 @@ function TaskListCard() {
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(t.priority)}`}>
                           {t.priority}
                         </span>
+                        {t.location && (
+                          <>
+                            <span>•</span>
+                            <span className="flex items-center gap-1">
+                              <MapPin className="w-3 h-3" />
+                              Location Required
+                            </span>
+                          </>
+                        )}
+                        {t.completedLocation && (
+                          <>
+                            <span>•</span>
+                            <span className="flex items-center gap-1 text-green-600">
+                              <CheckCircle className="w-3 h-3" />
+                              Location Verified
+                            </span>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
+                  
+                  {/* Task Location Map (if task has a location) */}
+                  {t.location && (
+                    <div className="mt-3 rounded-xl overflow-hidden border border-[#E2E9F9]">
+                      <div className="h-32">
+                        <Map 
+                          height={128} 
+                          defaultCenter={[t.location.lat, t.location.lng]} 
+                          center={[t.location.lat, t.location.lng]} 
+                          defaultZoom={13}
+                        >
+                          <Marker 
+                            width={30} 
+                            anchor={[t.location.lat, t.location.lng]} 
+                            color="#4786FA" 
+                          />
+                        </Map>
+                      </div>
+                      <div className="p-2 bg-[#F2F5FC] text-xs text-[#4786FA] text-center">
+                        Required Location: {t.location.lat.toFixed(4)}, {t.location.lng.toFixed(4)}
+                      </div>
+                    </div>
+                  )}
                 </div>
                 
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 min-w-0 lg:min-w-80">
@@ -360,6 +504,95 @@ function TaskListCard() {
           ))}
         </AnimatePresence>
       </div>
+
+      {/* Location Verification Modal */}
+      <AnimatePresence>
+        {showLocationModal && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            onClick={() => setShowLocationModal(false)}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="bg-white rounded-2xl p-6 max-w-md w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-bold text-black mb-4">Verify Task Location</h3>
+              <p className="text-sm text-[#4786FA] mb-4">
+                This task requires location verification. Please confirm your current location to mark it as complete.
+              </p>
+              
+              <div className="mb-4 h-48 rounded-xl overflow-hidden border border-[#E2E9F9]">
+                {currentLocation ? (
+                  <Map 
+                    height={192} 
+                    center={[currentLocation.lat, currentLocation.lng]} 
+                    defaultZoom={15}
+                  >
+                    <Marker 
+                      width={30} 
+                      anchor={[currentLocation.lat, currentLocation.lng]} 
+                      color="#10B981" 
+                    />
+                  </Map>
+                ) : (
+                  <div className="h-full flex items-center justify-center bg-[#F4F7FF]">
+                    <p className="text-sm text-[#4786FA]">Location not yet retrieved</p>
+                  </div>
+                )}
+              </div>
+              
+              {currentLocation && (
+                <p className="text-xs text-center text-[#4786FA] mb-4">
+                  Your location: {currentLocation.lat.toFixed(6)}, {currentLocation.lng.toFixed(6)}
+                </p>
+              )}
+              
+              {locationError && (
+                <p className="text-xs text-red-600 mb-4 text-center">{locationError}</p>
+              )}
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={getCurrentLocationForTask}
+                  disabled={isGettingLocation}
+                  className="flex-1 rounded-xl border-2 border-gray-300 bg-[#FFFFFF] px-4 py-2 text-sm font-semibold text-[#4786FA] hover:bg-[#F4F7FF] transition-all duration-300 flex items-center justify-center gap-2"
+                >
+                  {isGettingLocation ? (
+                    <>Getting Location...</>
+                  ) : (
+                    <>
+                      <Navigation className="w-4 h-4" />
+                      Get Location
+                    </>
+                  )}
+                </button>
+                
+                <button
+                  onClick={confirmTaskCompletion}
+                  disabled={!currentLocation}
+                  className="flex-1 rounded-xl bg-gradient-to-r from-[#4786FA] to-[#D1DFFA] px-4 py-2 text-sm font-bold text-white hover:shadow-lg transition-all duration-300"
+                >
+                  Confirm Completion
+                </button>
+              </div>
+              
+              <button
+                onClick={() => setShowLocationModal(false)}
+                className="mt-3 w-full rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold text-[#4786FA] hover:bg-[#F4F7FF] transition-all duration-300"
+              >
+                Cancel
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.section>
   )
 }
