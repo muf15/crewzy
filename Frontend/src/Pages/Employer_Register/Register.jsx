@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from "react-router-dom"
 import { Button } from "../../Components/Login_ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../Components/Login_ui/card"
 import { Input } from "../../Components/Login_ui/input"
 import { Label } from "../../Components/Login_ui/label"
 import { authAPI } from "../../utils/api"
+import { getCurrentLocation, getAddressFromCoordinates } from "../../utils/locationUtils"
 
 export function EmployerRegistered() {
     const navigate = useNavigate()
@@ -15,32 +16,53 @@ export function EmployerRegistered() {
         organization: '',
         subRole: '',
         workType: 'office',
+        fullAddress: '',
+        pincode: '',
+        eLoc: '',
+        coordinates: [],
         skills: []
     })
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState('')
-    const [location, setLocation] = useState({ lat: null, lon: null })
-    const [locationError, setLocationError] = useState(null)
+    const [isGettingLocation, setIsGettingLocation] = useState(false)
+    const [locationError, setLocationError] = useState('')
     const [skillInput, setSkillInput] = useState('')
 
-    // Get user location
-    useEffect(() => {
-        if ("geolocation" in navigator) {
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    setLocation({
-                        lat: position.coords.latitude,
-                        lon: position.coords.longitude,
-                    });
-                },
-                (err) => {
-                    setLocationError(err.message);
-                }
+    // Handle location fetching - same as admin registration
+    const handleGetCurrentLocation = async () => {
+        setIsGettingLocation(true);
+        setLocationError("");
+
+        try {
+            // Get current location
+            const location = await getCurrentLocation();
+            console.log("Current location:", location);
+
+            // Get address from coordinates using Mappls API
+            const addressData = await getAddressFromCoordinates(
+                location.latitude,
+                location.longitude
             );
-        } else {
-            setLocationError("Geolocation is not supported by this browser.");
+
+            // Update form data with fetched address and coordinates
+            setFormData((prev) => ({
+                ...prev,
+                fullAddress: addressData.fullAddress,
+                pincode: addressData.pincode,
+                eLoc: addressData.eLoc,
+                coordinates: addressData.coordinates,
+            }));
+
+            console.log("6 digit pin:", addressData.pincode);
+            console.log("6 digit eLoc (Mappls code):", addressData.eLoc);
+            console.log("Address fetched:", addressData);
+        } catch (error) {
+            console.error("Location error:", error);
+            setLocationError(error.message);
+        } finally {
+            setIsGettingLocation(false);
         }
-    }, []);
+    };
 
     const handleChange = (e) => {
         setFormData({
@@ -93,12 +115,12 @@ export function EmployerRegistered() {
                 skills: formData.skills
             }
 
-            // Add location if available and workType requires it
-            if (location.lat && location.lon) {
-                employeeData.location = {
-                    type: "Point",
-                    coordinates: [location.lon, location.lat] // [longitude, latitude] as per MongoDB convention
-                }
+            // Add location data if available (same format as admin registration)
+            if (formData.fullAddress) employeeData.fullAddress = formData.fullAddress;
+            if (formData.pincode) employeeData.pincode = formData.pincode;
+            if (formData.eLoc) employeeData.eLoc = formData.eLoc;
+            if (formData.coordinates && formData.coordinates.length === 2) {
+                employeeData.coordinates = formData.coordinates;
             }
 
             console.log('Registering employee:', employeeData)
@@ -214,23 +236,50 @@ export function EmployerRegistered() {
                         </p>
                     </div>
 
-                    {/* Location Information */}
+                    {/* Location Information - same as admin registration */}
                     <div className="grid gap-2">
-                        <Label>Location Status</Label>
-                        <div className="p-3 bg-gray-50 rounded-md text-sm">
+                        <Label>Work Location</Label>
+                        <div className="space-y-3">
+                            <Button
+                                type="button"
+                                onClick={handleGetCurrentLocation}
+                                disabled={isGettingLocation}
+                                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400"
+                            >
+                                {isGettingLocation ? (
+                                    <>⏳ Getting Location...</>
+                                ) : (
+                                    <>📍 Get Current Location</>
+                                )}
+                            </Button>
+
                             {locationError && (
-                                <p className="text-red-500">📍 Location Error: {locationError}</p>
+                                <p className="text-red-500 text-sm">📍 Error: {locationError}</p>
                             )}
-                            {location.lat && location.lon ? (
-                                <p className="text-green-600">
-                                    📍 Location captured: {location.lat.toFixed(4)}, {location.lon.toFixed(4)}
-                                </p>
-                            ) : (
-                                <p className="text-blue-500">📍 Fetching your location...</p>
+
+                            {formData.fullAddress && (
+                                <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+                                    <p className="text-green-700 text-sm font-medium">📍 Location Captured:</p>
+                                    <p className="text-sm">{formData.fullAddress}</p>
+                                    {formData.pincode && (
+                                        <p className="text-xs text-gray-600">Pincode: {formData.pincode}</p>
+                                    )}
+                                    {formData.eLoc && (
+                                        <p className="text-xs text-gray-600">Mappls eLoc: {formData.eLoc}</p>
+                                    )}
+                                </div>
                             )}
-                            <p className="text-xs text-gray-400 mt-1">
-                                Location is used for attendance tracking and proximity-based features
-                            </p>
+
+                            <div className="grid gap-2">
+                                <Label htmlFor="fullAddress">Full Address (or enter manually)</Label>
+                                <Input
+                                    id="fullAddress"
+                                    name="fullAddress"
+                                    placeholder="Enter your complete work address"
+                                    value={formData.fullAddress}
+                                    onChange={handleChange}
+                                />
+                            </div>
                         </div>
                     </div>
 

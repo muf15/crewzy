@@ -31,27 +31,23 @@ const userSchema = new mongoose.Schema(
       type: String,
       enum: ["office", "hybrid"],
     },
-    location: {
-      type: {
-        type: String,
-        enum: ["Point"],
-      },
-      coordinates: {
-        type: [Number],
-        validate: {
-          validator: function (v) {
-            if (!v || v.length === 0) return true; // Allow empty
-            return (
-              v.length === 2 &&
-              v[0] >= -180 &&
-              v[0] <= 180 && // longitude
-              v[1] >= -90 &&
-              v[1] <= 90
-            ); // latitude
-          },
-          message:
-            "Coordinates must be [longitude, latitude] with valid ranges",
+    fullAddress: {
+      type: String,
+    },
+    pincode: {
+      type: String,
+    },
+    eLoc: {
+      type: String,
+    },
+    coordinates: {
+      type: [Number],
+      validate: {
+        validator: function (v) {
+          return v.length === 0 || v.length === 2;
         },
+        message:
+          "Coordinates must be an array of [longitude, latitude] or empty",
       },
     },
     skills: [
@@ -65,13 +61,8 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-// Create geospatial index for location-based queries (only for documents with coordinates)
-userSchema.index(
-  { location: "2dsphere" },
-  {
-    sparse: true, // Only index documents that have the location field with valid data
-  }
-);
+// Create index on email for faster lookups
+userSchema.index({ email: 1 });
 
 const User = mongoose.model("User", userSchema);
 export default User;

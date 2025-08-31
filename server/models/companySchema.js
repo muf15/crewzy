@@ -13,13 +13,13 @@ const companySchema = new mongoose.Schema({
     {
       type: String,
       required: true,
-    }
+    },
   ],
   contactNos: [
     {
       type: String,
       required: true,
-    }
+    },
   ],
   companySize: {
     type: String,
@@ -29,12 +29,27 @@ const companySchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  pincode: {
+    type: String,
+  },
+  eLoc: {
+    type: String,
+  },
+  coordinates: {
+    type: [Number],
+    validate: {
+      validator: function (v) {
+        return v.length === 0 || v.length === 2;
+      },
+      message: "Coordinates must be an array of [longitude, latitude] or empty",
+    },
+  },
   workForceType: [
     {
       type: String,
       required: true,
-    }
-  ]
+    },
+  ],
 });
 
 const Company = mongoose.model("Company", companySchema);
