@@ -32,6 +32,7 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts';
+import AIAdmin from '../AIBOT/AIAdmin.jsx';
 
 const AdminDashboard = () => {
   const [activeDrawer, setActiveDrawer] = useState('dashboard');
@@ -444,6 +445,9 @@ const AdminDashboard = () => {
           </AnimatePresence>
         </div>
       </div>
+
+      {/* AI Chat Assistant */}
+      <AIAdmin />
     </div>
   );
 };

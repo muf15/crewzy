@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from "react-router-dom"
 import { Button } from "../../Components/Login_ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../Components/Login_ui/card"
@@ -14,10 +14,33 @@ export function EmployerRegistered() {
         password: '',
         organization: '',
         subRole: '',
-        workType: 'office'
+        workType: 'office',
+        skills: []
     })
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState('')
+    const [location, setLocation] = useState({ lat: null, lon: null })
+    const [locationError, setLocationError] = useState(null)
+    const [skillInput, setSkillInput] = useState('')
+
+    // Get user location
+    useEffect(() => {
+        if ("geolocation" in navigator) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    setLocation({
+                        lat: position.coords.latitude,
+                        lon: position.coords.longitude,
+                    });
+                },
+                (err) => {
+                    setLocationError(err.message);
+                }
+            );
+        } else {
+            setLocationError("Geolocation is not supported by this browser.");
+        }
+    }, []);
 
     const handleChange = (e) => {
         setFormData({
@@ -26,6 +49,30 @@ export function EmployerRegistered() {
         })
         // Clear error when user starts typing
         if (error) setError('')
+    }
+
+    const handleSkillAdd = () => {
+        if (skillInput.trim() && !formData.skills.includes(skillInput.trim())) {
+            setFormData({
+                ...formData,
+                skills: [...formData.skills, skillInput.trim()]
+            })
+            setSkillInput('')
+        }
+    }
+
+    const handleSkillRemove = (skillToRemove) => {
+        setFormData({
+            ...formData,
+            skills: formData.skills.filter(skill => skill !== skillToRemove)
+        })
+    }
+
+    const handleSkillKeyPress = (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault()
+            handleSkillAdd()
+        }
     }
 
     const onSubmit = async (e) => {
@@ -39,10 +86,19 @@ export function EmployerRegistered() {
                 name: formData.name.trim(),
                 email: formData.email.trim().toLowerCase(),
                 password: formData.password,
-                role: 'employee', // Fixed to match backend enum
+                role: 'employee', // Fixed to match backend enum - always employee
                 organization: formData.organization.trim(),
                 subRole: formData.subRole.trim(),
-                workType: formData.workType
+                workType: formData.workType,
+                skills: formData.skills
+            }
+
+            // Add location if available and workType requires it
+            if (location.lat && location.lon) {
+                employeeData.location = {
+                    type: "Point",
+                    coordinates: [location.lon, location.lat] // [longitude, latitude] as per MongoDB convention
+                }
             }
 
             console.log('Registering employee:', employeeData)
@@ -149,9 +205,74 @@ export function EmployerRegistered() {
                             onChange={handleChange}
                             required
                         >
-                            <option value="office">Office</option>
-                            <option value="hybrid">Hybrid</option>
+                            <option value="office">🏢 Office</option>
+                            <option value="hybrid">🏠💼 Hybrid</option>
                         </select>
+                        <p className="text-xs text-gray-500">
+                            • <strong>Office:</strong> Work from company premises only<br/>
+                            • <strong>Hybrid:</strong> Work from both office and home
+                        </p>
+                    </div>
+
+                    {/* Location Information */}
+                    <div className="grid gap-2">
+                        <Label>Location Status</Label>
+                        <div className="p-3 bg-gray-50 rounded-md text-sm">
+                            {locationError && (
+                                <p className="text-red-500">📍 Location Error: {locationError}</p>
+                            )}
+                            {location.lat && location.lon ? (
+                                <p className="text-green-600">
+                                    📍 Location captured: {location.lat.toFixed(4)}, {location.lon.toFixed(4)}
+                                </p>
+                            ) : (
+                                <p className="text-blue-500">📍 Fetching your location...</p>
+                            )}
+                            <p className="text-xs text-gray-400 mt-1">
+                                Location is used for attendance tracking and proximity-based features
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Skills */}
+                    <div className="grid gap-2">
+                        <Label htmlFor="skills">Skills</Label>
+                        <div className="flex gap-2">
+                            <Input 
+                                id="skills" 
+                                name="skills" 
+                                placeholder="e.g., JavaScript, Project Management"
+                                value={skillInput}
+                                onChange={(e) => setSkillInput(e.target.value)}
+                                onKeyPress={handleSkillKeyPress}
+                            />
+                            <Button 
+                                type="button" 
+                                onClick={handleSkillAdd}
+                                className="px-3 py-2 bg-green-600 hover:bg-green-700"
+                            >
+                                Add
+                            </Button>
+                        </div>
+                        {formData.skills.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mt-2">
+                                {formData.skills.map((skill, index) => (
+                                    <span 
+                                        key={index}
+                                        className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs flex items-center gap-1"
+                                    >
+                                        {skill}
+                                        <button
+                                            type="button"
+                                            onClick={() => handleSkillRemove(skill)}
+                                            className="ml-1 text-blue-600 hover:text-blue-800"
+                                        >
+                                            ×
+                                        </button>
+                                    </span>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     {/* Submit */}
