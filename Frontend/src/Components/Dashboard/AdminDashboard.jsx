@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Navbar from '../Navbar/Navbar';
 import { 
   LayoutDashboard, 
   Users, 
@@ -319,13 +320,15 @@ const AdminDashboard = () => {
   const ActiveComponent = drawerItems.find(item => item.id === activeDrawer)?.component;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#F4F7FF] via-[#FEFEFE] to-[#E3EAFE] flex">
-      {/* Sidebar - 30% width */}
-      <motion.div 
-        initial={{ x: -300 }}
-        animate={{ x: 0 }}
-        className={`${sidebarCollapsed ? 'w-20' : 'w-80'} transition-all duration-300 bg-[#4786FA] shadow-2xl flex flex-col`}
-      >
+    <div className="min-h-screen">
+      <Navbar />
+      <div className="min-h-screen bg-gradient-to-br from-[#F4F7FF] via-[#FEFEFE] to-[#E3EAFE] flex">
+        {/* Sidebar - 30% width */}
+        <motion.div 
+          initial={{ x: -300 }}
+          animate={{ x: 0 }}
+          className={`${sidebarCollapsed ? 'w-20' : 'w-80'} transition-all duration-300 bg-[#4786FA] shadow-2xl flex flex-col`}
+        >
         {/* Sidebar Header */}
         <div className="p-6 border-b border-[#D1DFFA]/20">
           <div className="flex items-center justify-between">
@@ -448,6 +451,7 @@ const AdminDashboard = () => {
 
       {/* AI Chat Assistant */}
       <AIAdmin />
+      </div>
     </div>
   );
 };

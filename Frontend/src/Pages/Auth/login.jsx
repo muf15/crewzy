@@ -107,7 +107,7 @@ export default function Login() {
             </div>
             <div className="text-sm text-center text-muted-foreground">
               <span>New here? </span>
-              <Link to="/employer" className="text-blue-700 hover:underline">
+              <Link to="/employee" className="text-blue-700 hover:underline">
                 Employer registration
               </Link>
               <span> · </span>

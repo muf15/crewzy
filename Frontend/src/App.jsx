@@ -79,9 +79,7 @@ const App = () => {
         <Route path="/hybrid" element={<HybridEmployeeAdminPage />} />
         <Route path="/admin-task" element={<AdminTaskManagementPage />} />
         <Route path="/office" element={<OfficeEmployeePage />} />
-        <Route path="/dashboard" element={<AdminDashboard />} />
-        <Route path="/employee-dashboard" element={<OfficeEmployeePage />} />
-        
+        <Route path="/dashboard" element={<OfficeEmployeePage />} />
       
        
       </Routes>

@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from "react-router-dom"
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from 'framer-motion';
+import Navbar from '../Navbar/Navbar';
 import { 
   Calendar, 
   Clock, 
@@ -599,8 +600,10 @@ function TaskListCard() {
 
 export default function HybridEmployeeAdminPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#F4F7FF] via-[#FEFEFE] to-[#E3EAFE]">
-      <main className="mx-auto max-w-7xl p-4 md:p-6 lg:p-8">
+    <div className="min-h-screen">
+      <Navbar />
+      <div className="min-h-screen bg-gradient-to-br from-[#F4F7FF] via-[#FEFEFE] to-[#E3EAFE]">
+        <main className="mx-auto max-w-7xl p-4 md:p-6 lg:p-8">
         {/* Header bar */}
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
@@ -664,6 +667,7 @@ export default function HybridEmployeeAdminPage() {
 
       {/* AI Chat Assistant */}
       <AIAdmin />
+      </div>
     </div>
   )
 }
