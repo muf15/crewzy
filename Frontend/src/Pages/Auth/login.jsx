@@ -33,17 +33,23 @@ export default function Login() {
 
     try {
       const response = await authAPI.login(formData)
-      const { token, user } = response.data
+      
+      console.log('Full login response:', response.data)
+      console.log('Redirect path from backend:', response.data.redirectPath)
+      console.log('User data:', response.data.user)
+      
+      const { token, user, redirectPath } = response.data
       
       // Update auth context
       login({ token, user })
       
-      // Navigate based on user role
-      if (user.role === 'admin') {
-        navigate("/admin-dashboard")
-      } else {
-        navigate("/dashboard") // Employee dashboard
-      }
+      // Use the redirectPath from backend response for role-based routing
+      const finalRedirectPath = redirectPath || '/dashboard';
+      console.log(`Redirecting ${user.role} user to: ${finalRedirectPath}`);
+      console.log('Final redirect path being used:', finalRedirectPath);
+      
+      // Navigate to the determined path
+      navigate(finalRedirectPath)
     } catch (err) {
       console.error('Login error:', err)
       setError(err.response?.data?.error || 'Login failed. Please try again.')
@@ -101,7 +107,7 @@ export default function Login() {
             </div>
             <div className="text-sm text-center text-muted-foreground">
               <span>New here? </span>
-              <Link to="/employer" className="text-blue-700 hover:underline">
+              <Link to="/employee" className="text-blue-700 hover:underline">
                 Employer registration
               </Link>
               <span> · </span>

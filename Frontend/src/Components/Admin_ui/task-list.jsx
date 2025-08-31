@@ -12,39 +12,46 @@ export default function TaskList({ tasks, onFocusTask, onDeleteTask }) {
           <thead className="bg-[#F4F7FF] text-[#1f2a44]">
             <tr>
               <th className="px-3 py-2">Task</th>
-              <th className="px-3 py-2">Employee</th>
               <th className="px-3 py-2">Customer</th>
               <th className="px-3 py-2">Contact</th>
-              <th className="px-3 py-2">Category</th>
-              <th className="px-3 py-2">Scheduled</th>
+              <th className="px-3 py-2">Status</th>
               <th className="px-3 py-2">Expected</th>
+              <th className="px-3 py-2">Created</th>
               <th className="px-3 py-2">Actions</th>
             </tr>
           </thead>
           <tbody>
             {tasks.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-3 py-6 text-center text-[#4b587c]">
+                <td colSpan={7} className="px-3 py-6 text-center text-[#4b587c]">
                   No tasks yet. Create your first one on the left.
                 </td>
               </tr>
             ) : (
               tasks.map((t) => (
-                <tr key={t.id} className="border-t border-[#E2E9F9]">
+                <tr key={t._id} className="border-t border-[#E2E9F9]">
                   <td className="px-3 py-2">
-                    <div className="font-medium text-[#1f2a44]">{t.taskName}</div>
-                    {t.notes ? <div className="text-xs text-[#4b587c]">{t.notes}</div> : null}
+                    <div className="font-medium text-[#1f2a44]">{t.task}</div>
+                    <div className="text-xs text-[#4b587c]">{t.fullAddress}</div>
                   </td>
-                  <td className="px-3 py-2 text-[#1f2a44]">{t.employeeName}</td>
-                  <td className="px-3 py-2 text-[#1f2a44]">{t.customerName || "-"}</td>
-                  <td className="px-3 py-2 text-[#1f2a44]">{t.contactNumber || "-"}</td>
+                  <td className="px-3 py-2 text-[#1f2a44]">{t.name}</td>
+                  <td className="px-3 py-2 text-[#1f2a44]">{t.contactNo}</td>
                   <td className="px-3 py-2">
-                    <span className="rounded-full bg-[#D1DFFA] px-2 py-1 text-xs text-[#1f2a44]">{t.category}</span>
+                    <span className={`rounded-full px-2 py-1 text-xs ${
+                      t.status === 'completed' ? 'bg-green-100 text-green-800' :
+                      t.status === 'inprogress' ? 'bg-blue-100 text-blue-800' :
+                      t.status === 'assigned' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {t.status}
+                    </span>
                   </td>
                   <td className="px-3 py-2 text-[#1f2a44]">
-                    {t.scheduledDate || "-"} {t.scheduledTime || ""}
+                    {t.expectedDate ? new Date(t.expectedDate).toLocaleDateString() : "-"}
                   </td>
-                  <td className="px-3 py-2 text-[#1f2a44]">{t.expectedDate || "-"}</td>
+                  <td className="px-3 py-2 text-[#1f2a44]">
+                    {new Date(t.createdAt).toLocaleDateString()}
+                  </td>
                   <td className="px-3 py-2">
                     <div className="flex gap-2">
                       <button
@@ -54,8 +61,8 @@ export default function TaskList({ tasks, onFocusTask, onDeleteTask }) {
                         Locate
                       </button>
                       <button
-                        onClick={() => onDeleteTask(t.id)}
-                        className="rounded-md bg-[#4786FA] px-2 py-1 text-xs text-white hover:opacity-95"
+                        onClick={() => onDeleteTask(t._id)}
+                        className="rounded-md bg-red-500 px-2 py-1 text-xs text-white hover:opacity-95"
                       >
                         Delete
                       </button>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useEffect, useMemo, useState } from "react"
 import {Link} from "react-router-dom"
+import Navbar from '../Navbar/Navbar';
 // Using a lightweight React map that needs no API key
 import { Map, Marker, ZoomControl } from "pigeon-maps"
 
@@ -256,10 +257,12 @@ export default function OfficeEmployeePage() {
   const status = todays?.checkOut ? "Checked out" : todays?.checkIn ? "Checked in" : "Not checked in yet";
 
   return (
-    <main
-      className="min-h-[calc(100vh-64px)] p-4 md:p-6 lg:p-8"
-      style={{ backgroundColor: "#F4F7FF" /* Very Light Blue */ }}
-    >
+    <div className="min-h-screen">
+      <Navbar />
+      <main
+        className="min-h-[calc(100vh-64px)] p-4 md:p-6 lg:p-8"
+        style={{ backgroundColor: "#F4F7FF" /* Very Light Blue */ }}
+      >
       <div className="mx-auto w-full max-w-6xl space-y-6">
         {/* Header */}
         <header
@@ -561,5 +564,6 @@ export default function OfficeEmployeePage() {
         </div>
       </div>
     </main>
+    </div>
   );
 }

@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from "react-router-dom"
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from 'framer-motion';
+import Navbar from '../Navbar/Navbar';
 import { 
   Calendar, 
   Clock, 
@@ -21,6 +22,7 @@ import {
 import AIAdmin from '../AIBOT/AIAdmin.jsx';
 // Import the map components
 import { Map, Marker } from 'pigeon-maps';
+import { useAuth } from '../../context/AuthContext';
 
 const StatusBadge = ({ status }) => {
   const map = {
@@ -217,137 +219,90 @@ function AttendanceCard() {
 }
 
 function TaskListCard() {
-  const [tasks, setTasks] = useState([
-    {
-      id: 1,
-      title: "Prepare weekly status report",
-      assignee: "You",
-      due: "Apr 09",
-      progress: 40,
-      status: "In Progress",
-      priority: "Medium",
-      location: { lat: 40.7128, lng: -74.0060 }, // New York
-      completedLocation: null,
-    },
-    {
-      id: 2,
-      title: "Review PR #142",
-      assignee: "You",
-      due: "Apr 10",
-      progress: 10,
-      status: "Pending",
-      priority: "High",
-      location: { lat: 34.0522, lng: -118.2437 }, // Los Angeles
-      completedLocation: null,
-    },
-    {
-      id: 3,
-      title: "Client onboarding checklist",
-      assignee: "You",
-      due: "Apr 12",
-      progress: 90,
-      status: "In Progress",
-      priority: "Low",
-      location: null,
-      completedLocation: null,
-    },
-  ]);
-  const [title, setTitle] = useState("");
-  const [due, setDue] = useState("");
-  const [showLocationModal, setShowLocationModal] = useState(false);
-  const [currentTaskId, setCurrentTaskId] = useState(null);
-  const [currentLocation, setCurrentLocation] = useState(null);
-  const [locationError, setLocationError] = useState("");
-  const [isGettingLocation, setIsGettingLocation] = useState(false);
+  const { user, token } = useAuth();
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [showCompleteModal, setShowCompleteModal] = useState(false);
+  const [revisitDate, setRevisitDate] = useState("");
+  const [modalLoading, setModalLoading] = useState(false);
 
-  const addTask = () => {
-    const t = title.trim()
-    if (!t) return
-    setTasks((prev) => [
-      {
-        id: Date.now(),
-        title: t,
-        assignee: "You",
-        due: due || "TBD",
-        progress: 0,
-        status: "Pending",
-        priority: "Medium",
-        location: null,
-        completedLocation: null,
-      },
-      ...prev,
-    ])
-    setTitle("")
-    setDue("")
-  }
-
-  const toggleDone = async (id) => {
-    const task = tasks.find(t => t.id === id);
-    
-    // If task has a location but no completed location, open modal to capture location
-    if (task && task.location && !task.completedLocation && task.status !== "Done") {
-      setCurrentTaskId(id);
-      setShowLocationModal(true);
-      return;
-    }
-    
-    // Otherwise, just toggle the status
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === id
-          ? { ...t, status: t.status === "Done" ? "Pending" : "Done", progress: t.status === "Done" ? 0 : 100 }
-          : t,
-      ),
-    )
-  }
-
-  const getCurrentLocationForTask = async () => {
-    setIsGettingLocation(true);
-    setLocationError("");
-    
-    try {
-      const location = await getCurrentLocation();
-      setCurrentLocation(location);
-    } catch (error) {
-      console.error("Error getting location:", error);
-      setLocationError("Failed to get your location. Please ensure location services are enabled.");
-    } finally {
-      setIsGettingLocation(false);
-    }
-  };
-
-  const confirmTaskCompletion = () => {
-    if (!currentLocation) {
-      setLocationError("Please get your current location first");
-      return;
-    }
-    
-    setTasks(prev => prev.map(task => {
-      if (task.id === currentTaskId) {
-        return {
-          ...task,
-          status: "Done",
-          progress: 100,
-          completedLocation: currentLocation
-        };
+  useEffect(() => {
+    async function fetchTasks() {
+      setLoading(true);
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/task`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        const data = await res.json();
+        if (res.ok) {
+          setTasks(data.tasks || []);
+        } else {
+          setError(data.error || 'Failed to fetch tasks');
+        }
+      } catch (err) {
+        setError('Network error');
+      } finally {
+        setLoading(false);
       }
-      return task;
-    }));
-    
-    setShowLocationModal(false);
-    setCurrentTaskId(null);
-    setCurrentLocation(null);
-    setLocationError("");
+    }
+    if (user && token) fetchTasks();
+  }, [user, token]);
+
+  const openTaskModal = (task) => {
+    setSelectedTask(task);
+    setShowCompleteModal(true);
+    setRevisitDate("");
   };
 
-  const getPriorityColor = (priority) => {
-    switch(priority) {
-      case 'High': return 'text-red-600 bg-red-50'
-      case 'Medium': return 'text-[#4786FA] bg-[#E3EAFE]'
-      case 'Low': return 'text-green-600 bg-green-50'
-      default: return 'text-[#4786FA] bg-[#F2F5FC]'
+  const handleComplete = async () => {
+    setModalLoading(true);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/task/${selectedTask._id}/status`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status: 'completed' })
+      });
+      if (res.ok) {
+        setTasks((prev) => prev.map(t => t._id === selectedTask._id ? { ...t, status: 'completed' } : t));
+        setShowCompleteModal(false);
+      } else {
+        setError('Failed to update task');
+      }
+    } finally {
+      setModalLoading(false);
     }
-  }
+  };
+
+  const handleRevisit = async () => {
+    if (!revisitDate) return;
+    setModalLoading(true);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/task/${selectedTask._id}/status`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status: 'revisit', revisitDate })
+      });
+      if (res.ok) {
+        setTasks((prev) => prev.map(t => t._id === selectedTask._id ? { ...t, status: 'revisit', revisitDate } : t));
+        setShowCompleteModal(false);
+      } else {
+        setError('Failed to update task');
+      }
+    } finally {
+      setModalLoading(false);
+    }
+  };
 
   return (
     <motion.section 
@@ -372,219 +327,159 @@ function TaskListCard() {
         </div>
       </header>
 
-      <div className="mb-6 grid gap-3 lg:grid-cols-6">
-        <motion.input
-          whileFocus={{ scale: 1.02 }}
-          className="lg:col-span-3 rounded-xl border-2 border-[#E2E9F9] bg-[#FEFEFE] px-4 py-3 text-sm outline-none placeholder:text-[#4786FA] placeholder:opacity-50 focus:border-[#4786FA] focus:bg-[#FFFFFF] transition-all duration-300"
-          placeholder="✨ Enter task title..."
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-        />
-        <motion.input
-          whileFocus={{ scale: 1.02 }}
-          className="lg:col-span-2 rounded-xl border-2 border-[#E2E9F9] bg-[#FEFEFE] px-4 py-3 text-sm outline-none placeholder:text-[#4786FA] placeholder:opacity-50 focus:border-[#4786FA] focus:bg-[#FFFFFF] transition-all duration-300"
-          placeholder="📅 Due date..."
-          value={due}
-          onChange={(e) => setDue(e.target.value)}
-        />
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={addTask}
-          className="rounded-xl bg-gradient-to-r from-[#4786FA] to-[#D1DFFA] px-6 py-3 text-sm font-bold text-white hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-2 shadow-lg border-2 border-gray-300"
-          style={{ boxShadow: '0 10px 25px -5px rgba(71, 134, 250, 0.3), 0 0 0 1px rgba(71, 134, 250, 0.1)' }}
-        >
-          <Plus className="w-4 h-4" />
-          Add Task
-        </motion.button>
-      </div>
 
-      <div className="space-y-4">
-        <AnimatePresence>
-          {tasks.map((t, index) => (
-            <motion.div 
-              key={t.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ delay: index * 0.1 }}
-              className="rounded-2xl border-2 border-gray-300 bg-[#F4F7FF] p-5 hover:shadow-md transition-all duration-300 shadow-lg"
-              style={{ boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(71, 134, 250, 0.05)' }}
-            >
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div className="flex-1">
-                  <div className="flex items-start gap-3 mb-2">
-                    <div className="flex-1">
-                      <h3 className="text-base font-semibold text-black mb-1">{t.title}</h3>
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-[#4786FA] opacity-70">
-                        <span className="flex items-center gap-1">
-                          <User className="w-3 h-3" />
-                          {t.assignee}
-                        </span>
-                        <span>•</span>
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          Due: {t.due}
-                        </span>
-                        <span>•</span>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(t.priority)}`}>
-                          {t.priority}
-                        </span>
-                        {t.location && (
-                          <>
-                            <span>•</span>
-                            <span className="flex items-center gap-1">
-                              <MapPin className="w-3 h-3" />
-                              Location Required
-                            </span>
-                          </>
-                        )}
-                        {t.completedLocation && (
-                          <>
-                            <span>•</span>
-                            <span className="flex items-center gap-1 text-green-600">
-                              <CheckCircle className="w-3 h-3" />
-                              Location Verified
-                            </span>
-                          </>
-                        )}
+
+      {loading ? (
+        <div className="p-6 text-center text-[#4786FA]">Loading tasks...</div>
+      ) : error ? (
+        <div className="p-6 text-center text-red-600">{error}</div>
+      ) : (
+        <div className="space-y-4">
+          <AnimatePresence>
+            {tasks.map((t, index) => (
+              <motion.div 
+                key={t._id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ delay: index * 0.1 }}
+                onClick={() => openTaskModal(t)}
+                className="cursor-pointer rounded-2xl border-2 border-gray-300 bg-[#F4F7FF] p-5 hover:shadow-md transition-all duration-300 shadow-lg"
+                style={{ boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(71, 134, 250, 0.05)' }}
+              >
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-start gap-3 mb-2">
+                      <div className="flex-1">
+                        <h3 className="text-base font-semibold text-black mb-1">{t.task}</h3>
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-[#4786FA] opacity-70">
+                          <span className="flex items-center gap-1">
+                            <User className="w-3 h-3" />
+                            {t.name}
+                          </span>
+                          <span>•</span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            Due: {new Date(t.expectedDate).toLocaleDateString()}
+                          </span>
+                          <span>•</span>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            t.status === 'completed' ? 'text-green-600 bg-green-50' :
+                            t.status === 'inprogress' ? 'text-blue-600 bg-blue-50' :
+                            t.status === 'assigned' ? 'text-yellow-600 bg-yellow-50' :
+                            t.status === 'revisit' ? 'text-orange-600 bg-orange-50' :
+                            'text-gray-600 bg-gray-50'
+                          }`}>
+                            {t.status}
+                          </span>
+                          {t.coordinates && t.coordinates.length === 2 && (
+                            <>
+                              <span>•</span>
+                              <span className="flex items-center gap-1">
+                                <MapPin className="w-3 h-3" />
+                                Location: {t.fullAddress}
+                              </span>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
+                    
+                    {/* Task Location Map (if task has coordinates) */}
+                    {t.coordinates && t.coordinates.length === 2 && (
+                      <div className="mt-3 rounded-xl overflow-hidden border border-[#E2E9F9]">
+                        <div className="h-32">
+                          <Map 
+                            height={128} 
+                            defaultCenter={[t.coordinates[1], t.coordinates[0]]} 
+                            center={[t.coordinates[1], t.coordinates[0]]} 
+                            defaultZoom={13}
+                          >
+                            <Marker 
+                              width={30} 
+                              anchor={[t.coordinates[1], t.coordinates[0]]} 
+                              color="#4786FA" 
+                            />
+                          </Map>
+                        </div>
+                        <div className="p-2 bg-[#F2F5FC] text-xs text-[#4786FA] text-center">
+                          Location: {t.fullAddress}
+                        </div>
+                      </div>
+                    )}
                   </div>
                   
-                  {/* Task Location Map (if task has a location) */}
-                  {t.location && (
-                    <div className="mt-3 rounded-xl overflow-hidden border border-[#E2E9F9]">
-                      <div className="h-32">
-                        <Map 
-                          height={128} 
-                          defaultCenter={[t.location.lat, t.location.lng]} 
-                          center={[t.location.lat, t.location.lng]} 
-                          defaultZoom={13}
-                        >
-                          <Marker 
-                            width={30} 
-                            anchor={[t.location.lat, t.location.lng]} 
-                            color="#4786FA" 
-                          />
-                        </Map>
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 min-w-0 lg:min-w-80">
+                    <div className="flex-1 w-full sm:w-32">
+                      <div className="flex items-center gap-2 mb-1">
+                        <TrendingUp className="w-3 h-3 text-[#4786FA]" />
+                        <span className="text-xs font-medium text-[#4786FA]">{t.progress}%</span>
                       </div>
-                      <div className="p-2 bg-[#F2F5FC] text-xs text-[#4786FA] text-center">
-                        Required Location: {t.location.lat.toFixed(4)}, {t.location.lng.toFixed(4)}
-                      </div>
+                      <ProgressBar value={t.progress} />
                     </div>
-                  )}
-                </div>
-                
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 min-w-0 lg:min-w-80">
-                  <div className="flex-1 w-full sm:w-32">
-                    <div className="flex items-center gap-2 mb-1">
-                      <TrendingUp className="w-3 h-3 text-[#4786FA]" />
-                      <span className="text-xs font-medium text-[#4786FA]">{t.progress}%</span>
+                    
+                    <div className="flex items-center gap-3">
+                      <StatusBadge status={t.status} />
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => toggleDone(t.id)}
+                        className="rounded-xl border-2 border-gray-300 bg-[#FFFFFF] px-3 py-2 text-xs font-semibold text-[#4786FA] hover:bg-[#F4F7FF] transition-all duration-300 flex items-center gap-1 shadow-md"
+                        style={{ boxShadow: '0 5px 15px -3px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(71, 134, 250, 0.05)' }}
+                      >
+                        {t.status === "Done" ? <XCircle className="w-3 h-3" /> : <CheckCircle className="w-3 h-3" />}
+                        {t.status === "Done" ? "Reopen" : "Complete"}
+                      </motion.button>
                     </div>
-                    <ProgressBar value={t.progress} />
-                  </div>
-                  
-                  <div className="flex items-center gap-3">
-                    <StatusBadge status={t.status} />
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => toggleDone(t.id)}
-                      className="rounded-xl border-2 border-gray-300 bg-[#FFFFFF] px-3 py-2 text-xs font-semibold text-[#4786FA] hover:bg-[#F4F7FF] transition-all duration-300 flex items-center gap-1 shadow-md"
-                      style={{ boxShadow: '0 5px 15px -3px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(71, 134, 250, 0.05)' }}
-                    >
-                      {t.status === "Done" ? <XCircle className="w-3 h-3" /> : <CheckCircle className="w-3 h-3" />}
-                      {t.status === "Done" ? "Reopen" : "Complete"}
-                    </motion.button>
                   </div>
                 </div>
-              </div>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-      </div>
-
-      {/* Location Verification Modal */}
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+      )}
       <AnimatePresence>
-        {showLocationModal && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-            onClick={() => setShowLocationModal(false)}
-          >
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="bg-white rounded-2xl p-6 max-w-md w-full"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3 className="text-lg font-bold text-black mb-4">Verify Task Location</h3>
-              <p className="text-sm text-[#4786FA] mb-4">
-                This task requires location verification. Please confirm your current location to mark it as complete.
-              </p>
-              
-              <div className="mb-4 h-48 rounded-xl overflow-hidden border border-[#E2E9F9]">
-                {currentLocation ? (
-                  <Map 
-                    height={192} 
-                    center={[currentLocation.lat, currentLocation.lng]} 
-                    defaultZoom={15}
-                  >
-                    <Marker 
-                      width={30} 
-                      anchor={[currentLocation.lat, currentLocation.lng]} 
-                      color="#10B981" 
-                    />
-                  </Map>
-                ) : (
-                  <div className="h-full flex items-center justify-center bg-[#F4F7FF]">
-                    <p className="text-sm text-[#4786FA]">Location not yet retrieved</p>
-                  </div>
-                )}
-              </div>
-              
-              {currentLocation && (
-                <p className="text-xs text-center text-[#4786FA] mb-4">
-                  Your location: {currentLocation.lat.toFixed(6)}, {currentLocation.lng.toFixed(6)}
-                </p>
-              )}
-              
-              {locationError && (
-                <p className="text-xs text-red-600 mb-4 text-center">{locationError}</p>
-              )}
-              
-              <div className="flex gap-3">
+        {showCompleteModal && selectedTask && (
+          <motion.div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <motion.div className="bg-white rounded-2xl p-6 max-w-md w-full" onClick={e => e.stopPropagation()}>
+              <h3 className="text-lg font-bold text-black mb-4">Task Completion</h3>
+              <p className="text-sm text-[#4786FA] mb-4">Have you completed this task?</p>
+              <div className="flex gap-3 mb-4">
                 <button
-                  onClick={getCurrentLocationForTask}
-                  disabled={isGettingLocation}
-                  className="flex-1 rounded-xl border-2 border-gray-300 bg-[#FFFFFF] px-4 py-2 text-sm font-semibold text-[#4786FA] hover:bg-[#F4F7FF] transition-all duration-300 flex items-center justify-center gap-2"
-                >
-                  {isGettingLocation ? (
-                    <>Getting Location...</>
-                  ) : (
-                    <>
-                      <Navigation className="w-4 h-4" />
-                      Get Location
-                    </>
-                  )}
-                </button>
-                
-                <button
-                  onClick={confirmTaskCompletion}
-                  disabled={!currentLocation}
+                  onClick={handleComplete}
+                  disabled={modalLoading}
                   className="flex-1 rounded-xl bg-gradient-to-r from-[#4786FA] to-[#D1DFFA] px-4 py-2 text-sm font-bold text-white hover:shadow-lg transition-all duration-300"
                 >
-                  Confirm Completion
+                  Yes
+                </button>
+                <button
+                  onClick={() => setRevisitDate("")}
+                  disabled={modalLoading}
+                  className="flex-1 rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold text-[#4786FA] hover:bg-[#F4F7FF] transition-all duration-300"
+                >
+                  Revisit
                 </button>
               </div>
-              
+              {revisitDate !== "" && (
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-[#4786FA] mb-2">Revisit Date & Time</label>
+                  <input
+                    type="datetime-local"
+                    value={revisitDate}
+                    onChange={e => setRevisitDate(e.target.value)}
+                    className="w-full rounded-md border border-[#E2E9F9] px-3 py-2 text-sm outline-none focus:border-[#4786FA]"
+                  />
+                  <button
+                    onClick={handleRevisit}
+                    disabled={modalLoading || !revisitDate}
+                    className="mt-3 w-full rounded-xl bg-gradient-to-r from-[#4786FA] to-[#D1DFFA] px-4 py-2 text-sm font-bold text-white hover:shadow-lg transition-all duration-300"
+                  >
+                    Confirm Revisit
+                  </button>
+                </div>
+              )}
               <button
-                onClick={() => setShowLocationModal(false)}
+                onClick={() => { setShowCompleteModal(false); setSelectedTask(null); setRevisitDate(""); }}
                 className="mt-3 w-full rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold text-[#4786FA] hover:bg-[#F4F7FF] transition-all duration-300"
               >
                 Cancel
@@ -599,8 +494,10 @@ function TaskListCard() {
 
 export default function HybridEmployeeAdminPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#F4F7FF] via-[#FEFEFE] to-[#E3EAFE]">
-      <main className="mx-auto max-w-7xl p-4 md:p-6 lg:p-8">
+    <div className="min-h-screen">
+      <Navbar />
+      <div className="min-h-screen bg-gradient-to-br from-[#F4F7FF] via-[#FEFEFE] to-[#E3EAFE]">
+        <main className="mx-auto max-w-7xl p-4 md:p-6 lg:p-8">
         {/* Header bar */}
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
@@ -664,6 +561,7 @@ export default function HybridEmployeeAdminPage() {
 
       {/* AI Chat Assistant */}
       <AIAdmin />
+      </div>
     </div>
   )
 }

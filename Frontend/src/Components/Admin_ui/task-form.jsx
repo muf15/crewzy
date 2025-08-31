@@ -1,56 +1,142 @@
 "use client"
 
-import { useState } from "react"
-
-const categories = ["Installation", "Maintenance", "Delivery", "Inspection", "Support", "Other"]
+import { useState, useEffect } from "react"
+import { getCurrentLocation, getAddressFromCoordinates, getElocFromCoordinates } from "../../utils/locationUtils"
 
 export default function TaskForm({ onAdd, selectedLocation, onUseMyLocation }) {
-  const [taskName, setTaskName] = useState("")
-  const [employeeName, setEmployeeName] = useState("")
-  const [customerName, setCustomerName] = useState("")
-  const [contactNumber, setContactNumber] = useState("")
-  const [category, setCategory] = useState(categories[0])
-  const [scheduledDate, setScheduledDate] = useState("")
-  const [scheduledTime, setScheduledTime] = useState("")
-  const [expectedDate, setExpectedDate] = useState("")
-  const [notes, setNotes] = useState("")
+  const [formData, setFormData] = useState({
+    name: "",
+    contactNo: "",
+    fullAddress: "",
+    pincode: "",
+    eLoc: "",
+    coordinates: [],
+    task: "",
+    expectedDate: ""
+  })
+  const [locationLoading, setLocationLoading] = useState(false)
+  const [errors, setErrors] = useState({})
+  const [submitLoading, setSubmitLoading] = useState(false)
 
-  function reset() {
-    setTaskName("")
-    setEmployeeName("")
-    setCustomerName("")
-    setContactNumber("")
-    setCategory(categories[0])
-    setScheduledDate("")
-    setScheduledTime("")
-    setExpectedDate("")
-    setNotes("")
+  // Update form data when location is selected from map
+  useEffect(() => {
+    if (selectedLocation && selectedLocation.coordinates) {
+      setFormData(prev => ({
+        ...prev,
+        fullAddress: selectedLocation.fullAddress || `Map Location: ${selectedLocation.lat.toFixed(6)}, ${selectedLocation.lng.toFixed(6)}`,
+        pincode: selectedLocation.pincode || "",
+        eLoc: selectedLocation.eLoc || "",
+        coordinates: selectedLocation.coordinates
+      }))
+    }
+  }, [selectedLocation])
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: "" }))
+    }
   }
 
-  function handleSubmit(e) {
-    e.preventDefault()
-    if (!taskName.trim()) return
-    if (!employeeName.trim()) return
-    if (!selectedLocation) return
-    const phone = contactNumber.trim()
-    if (!/^[0-9+()\-.\s]{7,}$/.test(phone)) return
+  const handleUseCurrentLocation = async () => {
+    try {
+      setLocationLoading(true)
+      setErrors(prev => ({ ...prev, location: "" }))
+      
+      const position = await getCurrentLocation()
+      const addressData = await getAddressFromCoordinates(
+        position.latitude, 
+        position.longitude
+      )
+      
+      setFormData(prev => ({
+        ...prev,
+        fullAddress: addressData.fullAddress,
+        pincode: addressData.pincode,
+        eLoc: addressData.eLoc,
+        coordinates: addressData.coordinates
+      }))
+      
+      // Call the parent's onUseMyLocation to update map
+      onUseMyLocation()
+      
+    } catch (error) {
+      console.error("Location error:", error)
+      setErrors(prev => ({ ...prev, location: error.message }))
+    } finally {
+      setLocationLoading(false)
+    }
+  }
 
-    onAdd({
-      id: Date.now().toString(),
-      taskName: taskName.trim(),
-      employeeName: employeeName.trim(),
-      customerName: customerName.trim(),
-      contactNumber: phone,
-      category,
-      scheduledDate,
-      scheduledTime,
-      expectedDate,
-      location: selectedLocation,
-      notes: notes.trim(),
-      createdAt: new Date().toISOString(),
-      status: "Scheduled",
-    })
-    reset()
+  const validateForm = () => {
+    const newErrors = {}
+    
+    if (!formData.name.trim()) {
+      newErrors.name = "Name is required"
+    }
+    
+    if (!formData.contactNo.trim()) {
+      newErrors.contactNo = "Contact number is required"
+    } else if (!/^[0-9+()\-.\s]{10,}$/.test(formData.contactNo.trim())) {
+      newErrors.contactNo = "Please enter a valid contact number"
+    }
+    
+    if (!formData.task.trim()) {
+      newErrors.task = "Task description is required"
+    }
+    
+    if (!formData.expectedDate) {
+      newErrors.expectedDate = "Expected date is required"
+    }
+    
+    if (!formData.fullAddress.trim()) {
+      newErrors.fullAddress = "Address is required"
+    }
+    
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    
+    if (!validateForm()) {
+      return
+    }
+    
+    setSubmitLoading(true)
+    
+    // Prepare task data for backend
+    const taskData = {
+      name: formData.name.trim(),
+      contactNo: formData.contactNo.trim(),
+      fullAddress: formData.fullAddress.trim(),
+      pincode: formData.pincode || "",
+      eLoc: formData.eLoc || "",
+      coordinates: formData.coordinates.length > 0 ? formData.coordinates : [],
+      task: formData.task.trim(),
+      expectedDate: formData.expectedDate
+    }
+    
+    const result = await onAdd(taskData)
+    
+    if (result.success) {
+      // Reset form on success
+      setFormData({
+        name: "",
+        contactNo: "",
+        fullAddress: "",
+        pincode: "",
+        eLoc: "",
+        coordinates: [],
+        task: "",
+        expectedDate: ""
+      })
+    } else {
+      setErrors(prev => ({ ...prev, submit: result.error }))
+    }
+    
+    setSubmitLoading(false)
   }
 
   return (
@@ -59,131 +145,162 @@ export default function TaskForm({ onAdd, selectedLocation, onUseMyLocation }) {
         <h2 className="text-lg font-semibold text-[#1f2a44]">Create Task</h2>
         <p className="text-sm text-[#4b587c]">Assign a new task with location and deadlines</p>
 
+        {errors.submit && (
+          <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-red-600 text-sm">{errors.submit}</p>
+          </div>
+        )}
+
         <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
           <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-[#1f2a44]">Task Name</label>
+            <label className="text-sm font-medium text-[#1f2a44]">Customer Name *</label>
             <input
-              value={taskName}
-              onChange={(e) => setTaskName(e.target.value)}
-              className="h-10 rounded-md border border-[#E2E9F9] bg-white px-3 text-sm outline-none focus:border-[#4786FA]"
-              placeholder="e.g., AC Installation"
+              value={formData.name}
+              onChange={(e) => handleInputChange('name', e.target.value)}
+              className={`h-10 rounded-md border bg-white px-3 text-sm outline-none focus:border-[#4786FA] ${
+                errors.name ? 'border-red-300' : 'border-[#E2E9F9]'
+              }`}
+              placeholder="Enter customer name"
               required
             />
+            {errors.name && <span className="text-xs text-red-600">{errors.name}</span>}
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-[#1f2a44]">Assign To (Employee)</label>
+            <label className="text-sm font-medium text-[#1f2a44]">Contact Number *</label>
             <input
-              value={employeeName}
-              onChange={(e) => setEmployeeName(e.target.value)}
-              className="h-10 rounded-md border border-[#E2E9F9] bg-white px-3 text-sm outline-none focus:border-[#4786FA]"
-              placeholder="Employee name"
+              value={formData.contactNo}
+              onChange={(e) => handleInputChange('contactNo', e.target.value)}
+              className={`h-10 rounded-md border bg-white px-3 text-sm outline-none focus:border-[#4786FA] ${
+                errors.contactNo ? 'border-red-300' : 'border-[#E2E9F9]'
+              }`}
+              placeholder="+91 9876543210"
               required
             />
+            {errors.contactNo && <span className="text-xs text-red-600">{errors.contactNo}</span>}
           </div>
 
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-[#1f2a44]">Customer Name</label>
-            <input
-              value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-              className="h-10 rounded-md border border-[#E2E9F9] bg-white px-3 text-sm outline-none focus:border-[#4786FA]"
-              placeholder="Customer name"
+          <div className="md:col-span-2 flex flex-col gap-1">
+            <label className="text-sm font-medium text-[#1f2a44]">Task Description *</label>
+            <textarea
+              value={formData.task}
+              onChange={(e) => handleInputChange('task', e.target.value)}
+              className={`min-h-20 rounded-md border bg-white px-3 py-2 text-sm outline-none focus:border-[#4786FA] ${
+                errors.task ? 'border-red-300' : 'border-[#E2E9F9]'
+              }`}
+              placeholder="Describe the task in detail..."
+              required
             />
+            {errors.task && <span className="text-xs text-red-600">{errors.task}</span>}
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-[#1f2a44]">Contact Number</label>
-            <input
-              value={contactNumber}
-              onChange={(e) => setContactNumber(e.target.value)}
-              className="h-10 rounded-md border border-[#E2E9F9] bg-white px-3 text-sm outline-none focus:border-[#4786FA]"
-              placeholder="+1 555 123 4567"
-            />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-[#1f2a44]">Category</label>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="h-10 rounded-md border border-[#E2E9F9] bg-white px-3 text-sm outline-none focus:border-[#4786FA]"
-            >
-              {categories.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-[#1f2a44]">Scheduled Date</label>
+            <label className="text-sm font-medium text-[#1f2a44]">Expected Completion Date *</label>
             <input
               type="date"
-              value={scheduledDate}
-              onChange={(e) => setScheduledDate(e.target.value)}
-              className="h-10 rounded-md border border-[#E2E9F9] bg-white px-3 text-sm outline-none focus:border-[#4786FA]"
+              value={formData.expectedDate}
+              onChange={(e) => handleInputChange('expectedDate', e.target.value)}
+              className={`h-10 rounded-md border bg-white px-3 text-sm outline-none focus:border-[#4786FA] ${
+                errors.expectedDate ? 'border-red-300' : 'border-[#E2E9F9]'
+              }`}
+              required
             />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-[#1f2a44]">Scheduled Time</label>
-            <input
-              type="time"
-              value={scheduledTime}
-              onChange={(e) => setScheduledTime(e.target.value)}
-              className="h-10 rounded-md border border-[#E2E9F9] bg-white px-3 text-sm outline-none focus:border-[#4786FA]"
-            />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-[#1f2a44]">Expected Completion Date</label>
-            <input
-              type="date"
-              value={expectedDate}
-              onChange={(e) => setExpectedDate(e.target.value)}
-              className="h-10 rounded-md border border-[#E2E9F9] bg-white px-3 text-sm outline-none focus:border-[#4786FA]"
-            />
+            {errors.expectedDate && <span className="text-xs text-red-600">{errors.expectedDate}</span>}
           </div>
         </div>
 
+        {/* Location Section */}
         <div className="mt-4 rounded-md border border-[#E2E9F9] bg-white p-3">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-sm font-medium text-[#1f2a44]">Task Location</p>
+              <p className="text-sm font-medium text-[#1f2a44]">Task Location *</p>
               <p className="text-xs text-[#4b587c]">
-                Click on the map to pick a location or use your current location.
+                Click on the map or use current location to set coordinates.
               </p>
+              {formData.coordinates.length === 2 && (
+                <p className="text-xs text-green-600 mt-1">
+                  Coordinates: [{formData.coordinates[0].toFixed(6)}, {formData.coordinates[1].toFixed(6)}]
+                </p>
+              )}
             </div>
             <button
               type="button"
-              onClick={onUseMyLocation}
-              className="rounded-md bg-[#4786FA] px-3 py-2 text-xs font-medium text-white hover:opacity-95"
+              onClick={handleUseCurrentLocation}
+              disabled={locationLoading}
+              className="rounded-md bg-[#4786FA] px-3 py-2 text-xs font-medium text-white hover:opacity-95 disabled:opacity-50"
             >
-              Use my location
+              {locationLoading ? "Getting location..." : "Use current location"}
             </button>
           </div>
-          <div className="mt-2 text-xs text-[#1f2a44]">
-            {selectedLocation
-              ? `Selected: ${selectedLocation.lat.toFixed(5)}, ${selectedLocation.lng.toFixed(5)}`
-              : "No location selected"}
+          
+          {errors.location && (
+            <div className="mt-2 text-xs text-red-600">{errors.location}</div>
+          )}
+        </div>
+
+        {/* Address Fields */}
+        <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div className="md:col-span-2 flex flex-col gap-1">
+            <label className="text-sm font-medium text-[#1f2a44]">Full Address *</label>
+            <textarea
+              value={formData.fullAddress}
+              onChange={(e) => handleInputChange('fullAddress', e.target.value)}
+              className={`min-h-16 rounded-md border bg-white px-3 py-2 text-sm outline-none focus:border-[#4786FA] ${
+                errors.fullAddress ? 'border-red-300' : 'border-[#E2E9F9]'
+              }`}
+              placeholder="Enter complete address or use current location"
+              required
+            />
+            {errors.fullAddress && <span className="text-xs text-red-600">{errors.fullAddress}</span>}
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-[#1f2a44]">Pincode</label>
+            <input
+              value={formData.pincode}
+              onChange={(e) => handleInputChange('pincode', e.target.value)}
+              className="h-10 rounded-md border border-[#E2E9F9] bg-white px-3 text-sm outline-none focus:border-[#4786FA]"
+              placeholder="Auto-filled from location"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-[#1f2a44]">eLoc (Mappls Code)</label>
+            <input
+              value={formData.eLoc}
+              onChange={(e) => handleInputChange('eLoc', e.target.value)}
+              className="h-10 rounded-md border border-[#E2E9F9] bg-white px-3 text-sm outline-none focus:border-[#4786FA]"
+              placeholder="Auto-filled from location"
+            />
           </div>
         </div>
 
         <div className="mt-4 flex items-center justify-end gap-3">
           <button
             type="button"
-            onClick={reset}
+            onClick={() => {
+              setFormData({
+                name: "",
+                contactNo: "",
+                fullAddress: "",
+                pincode: "",
+                eLoc: "",
+                coordinates: [],
+                task: "",
+                expectedDate: ""
+              })
+              setErrors({})
+            }}
             className="rounded-md border border-[#E2E9F9] bg-white px-4 py-2 text-sm text-[#1f2a44] hover:bg-[#D1DFFA]"
           >
             Reset
           </button>
           <button
             type="submit"
-            className="rounded-md bg-[#4786FA] px-4 py-2 text-sm font-semibold text-white hover:opacity-95"
+            disabled={submitLoading}
+            className="rounded-md bg-[#4786FA] px-4 py-2 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-50"
           >
-            Add Task
+            {submitLoading ? "Creating Task..." : "Create Task"}
           </button>
         </div>
       </div>

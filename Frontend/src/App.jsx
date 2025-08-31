@@ -76,13 +76,13 @@ const App = () => {
         <Route path="/demo" element={<Demo />} />
         <Route path="/admin-registration" element={<AdminRegistration />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/employer" element={<EmployerRegisterPage />} />
+        <Route path="/employee" element={<EmployerRegisterPage />} />
         <Route path="/admin-dashboard" element={<AdminDashboard />} />
         <Route path="/hybrid" element={<HybridEmployeeAdminPage />} />
         <Route path="/admin-task" element={<AdminTaskManagementPage />} />
         <Route path="/office" element={<OfficeEmployeePage />} />
         <Route path="/travel" element={<Travel />} />
-        
+        <Route path="/dashboard" element={<OfficeEmployeePage />} />
       
        
       </Routes>
