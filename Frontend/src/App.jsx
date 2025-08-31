@@ -11,6 +11,8 @@ import HeroLanding from './Components/Landing/HeroLanding.jsx';
 import AdminTaskManagementPage from './Components/Admin-task-management/AdminTaskManagementPage.jsx';
 import UserLocation from './Components/AdminForm/UserLocation.jsx';
 import OfficeEmployeePage from './Components/Office_Employee/OfficeEmployeePage.jsx';
+
+import Travel from './Components/TravelExpense/Travel.jsx';
 const Home = () => (
   <div className="min-h-screen">
     <HeroLanding />
@@ -79,6 +81,7 @@ const App = () => {
         <Route path="/hybrid" element={<HybridEmployeeAdminPage />} />
         <Route path="/admin-task" element={<AdminTaskManagementPage />} />
         <Route path="/office" element={<OfficeEmployeePage />} />
+        <Route path="/travel" element={<Travel />} />
         <Route path="/dashboard" element={<OfficeEmployeePage />} />
       
        

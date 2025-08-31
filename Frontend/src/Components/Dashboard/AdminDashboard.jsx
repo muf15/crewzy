@@ -14,7 +14,9 @@ import {
   ChevronRight,
   TrendingUp,
   UserCheck,
-  Activity
+  Activity,
+  MapPin,
+  Download
 } from 'lucide-react';
 import {
   LineChart,
@@ -34,10 +36,57 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import AIAdmin from '../AIBOT/AIAdmin.jsx';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+import { saveAs } from 'file-saver';
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+
+// Fix for default markers in react-leaflet
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
 
 const AdminDashboard = () => {
   const [activeDrawer, setActiveDrawer] = useState('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Hardcoded employee data
+  const employees = [
+    { id: 1, name: 'John Doe', type: 'hybrid', tasks: ['UI Design', 'Client Meeting'], location: [51.505, -0.09] },
+    { id: 2, name: 'Jane Smith', type: 'onsite', tasks: ['Backend Development', 'Code Review'], location: [51.51, -0.1] },
+    { id: 3, name: 'Robert Johnson', type: 'hybrid', tasks: ['Database Optimization', 'Team Training'], location: [51.515, -0.08] },
+    { id: 4, name: 'Emily Davis', type: 'remote', tasks: ['Content Writing', 'SEO Optimization'], location: [51.52, -0.07] },
+    { id: 5, name: 'Michael Wilson', type: 'onsite', tasks: ['Frontend Development', 'Bug Fixing'], location: [51.525, -0.06] },
+    { id: 6, name: 'Sarah Brown', type: 'hybrid', tasks: ['Project Management', 'Client Communication'], location: [51.53, -0.05] },
+    { id: 7, name: 'David Miller', type: 'onsite', tasks: ['QA Testing', 'Documentation'], location: [51.535, -0.04] },
+    { id: 8, name: 'Lisa Johnson', type: 'hybrid', tasks: ['UX Research', 'Prototyping'], location: [51.54, -0.03] },
+    { id: 9, name: 'James Taylor', type: 'remote', tasks: ['DevOps', 'Server Maintenance'], location: [51.545, -0.02] },
+    { id: 10, name: 'Jennifer Anderson', type: 'onsite', tasks: ['Data Analysis', 'Reporting'], location: [51.55, -0.01] }
+  ];
+
+  // Calculate employee type distribution
+  const employeeTypeData = employees.reduce((acc, employee) => {
+    acc[employee.type] = (acc[employee.type] || 0) + 1;
+    return acc;
+  }, {});
+
+  // Convert to array for Pie chart
+  const employeeTypePieData = Object.keys(employeeTypeData).map((type, index) => ({
+    name: type.charAt(0).toUpperCase() + type.slice(1),
+    value: employeeTypeData[type],
+    color: ['#4786FA', '#D1DFFA', '#E3EAFE'][index % 3]
+  }));
+
+  // Calculate task distribution
+  const allTasks = employees.flatMap(emp => emp.tasks);
+  const taskCounts = allTasks.reduce((acc, task) => {
+    acc[task] = (acc[task] || 0) + 1;
+    return acc;
+  }, {});
 
   // Sample data for charts
   const monthlyData = [
@@ -57,7 +106,7 @@ const AdminDashboard = () => {
     { name: 'Other', value: 5, color: '#E2E9F9' },
   ];
 
-  // Drawer configuration - Easy to add more drawers here!
+  // Drawer configuration
   const drawerItems = [
     {
       id: 'dashboard',
@@ -76,6 +125,12 @@ const AdminDashboard = () => {
       name: 'Users',
       icon: Users,
       component: UsersContent
+    },
+    {
+      id: 'employees',
+      name: 'Employees',
+      icon: UserCheck,
+      component: EmployeesContent
     },
     {
       id: 'analytics',
@@ -102,6 +157,86 @@ const AdminDashboard = () => {
       component: SettingsContent
     }
   ];
+
+  // Function to generate PDF report
+  const generateEmployeeReport = async () => {
+    // Create a new PDFDocument
+    const pdfDoc = await PDFDocument.create();
+    const page = pdfDoc.addPage([600, 800]);
+    const { width, height } = page.getSize();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    
+    // Add title
+    page.drawText('Employee Report', {
+      x: 50,
+      y: height - 50,
+      size: 20,
+      font: boldFont,
+      color: rgb(0, 0, 0),
+    });
+    
+    // Add date
+    const now = new Date();
+    page.drawText(`Generated on: ${now.toLocaleDateString()}`, {
+      x: 50,
+      y: height - 80,
+      size: 12,
+      font: font,
+      color: rgb(0, 0, 0),
+    });
+    
+    // Add employee data
+    let yPosition = height - 120;
+    employees.forEach((employee, index) => {
+      if (yPosition <= 100) {
+        page.drawText('-- Continued on next page --', {
+          x: 50,
+          y: 50,
+          size: 10,
+          font: font,
+          color: rgb(0, 0, 0),
+        });
+        
+        // Add a new page
+        const newPage = pdfDoc.addPage([600, 800]);
+        yPosition = newPage.getHeight() - 50;
+      }
+      
+      page.drawText(`${index + 1}. ${employee.name}`, {
+        x: 50,
+        y: yPosition,
+        size: 14,
+        font: boldFont,
+        color: rgb(0, 0, 0),
+      });
+      
+      page.drawText(`   Type: ${employee.type}`, {
+        x: 70,
+        y: yPosition - 20,
+        size: 12,
+        font: font,
+        color: rgb(0, 0, 0),
+      });
+      
+      page.drawText(`   Tasks: ${employee.tasks.join(', ')}`, {
+        x: 70,
+        y: yPosition - 40,
+        size: 12,
+        font: font,
+        color: rgb(0, 0, 0),
+      });
+      
+      yPosition -= 70;
+    });
+    
+    // Serialize the PDFDocument to bytes
+    const pdfBytes = await pdfDoc.save();
+    
+    // Create a blob and download
+    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+    saveAs(blob, 'employee-report.pdf');
+  };
 
   // Dashboard main content
   function DashboardContent() {
@@ -171,29 +306,30 @@ const AdminDashboard = () => {
             </ResponsiveContainer>
           </motion.div>
 
-          {/* Pie Chart */}
+          {/* Employee Type Distribution */}
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
             className="bg-white rounded-2xl p-6 shadow-lg border border-[#E2E9F9]"
           >
-            <h3 className="text-lg font-bold text-[#4786FA] mb-4">Industry Distribution</h3>
+            <h3 className="text-lg font-bold text-[#4786FA] mb-4">Employee Distribution</h3>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
-                  data={pieData}
+                  data={employeeTypePieData}
                   cx="50%"
                   cy="50%"
                   outerRadius={100}
                   dataKey="value"
                   label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                 >
-                  {pieData.map((entry, index) => (
+                  {employeeTypePieData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
                 <Tooltip />
+                <Legend />
               </PieChart>
             </ResponsiveContainer>
           </motion.div>
@@ -234,6 +370,103 @@ const AdminDashboard = () => {
               </defs>
             </AreaChart>
           </ResponsiveContainer>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // Employees Content with Map
+  function EmployeesContent() {
+    const hybridEmployees = employees.filter(emp => emp.type === 'hybrid');
+    
+    return (
+      <div className="space-y-6">
+        {/* Employee Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white rounded-2xl p-6 shadow-lg border border-[#E2E9F9]">
+            <h3 className="text-lg font-bold text-[#4786FA] mb-2">Total Employees</h3>
+            <p className="text-3xl font-bold">{employees.length}</p>
+          </div>
+          <div className="bg-white rounded-2xl p-6 shadow-lg border border-[#E2E9F9]">
+            <h3 className="text-lg font-bold text-[#4786FA] mb-2">Hybrid Workers</h3>
+            <p className="text-3xl font-bold">{hybridEmployees.length}</p>
+          </div>
+          <div className="bg-white rounded-2xl p-6 shadow-lg border border-[#E2E9F9]">
+            <h3 className="text-lg font-bold text-[#4786FA] mb-2">Onsite Workers</h3>
+            <p className="text-3xl font-bold">{employees.filter(emp => emp.type === 'onsite').length}</p>
+          </div>
+        </div>
+
+        {/* Employee Map */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white rounded-2xl p-6 shadow-lg border border-[#E2E9F9]"
+        >
+          <h3 className="text-lg font-bold text-[#4786FA] mb-4">Hybrid Employee Locations</h3>
+          <div className="h-96 rounded-xl overflow-hidden">
+            <MapContainer 
+              center={[51.505, -0.09]} 
+              zoom={12} 
+              style={{ height: '100%', width: '100%' }}
+            >
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+              {hybridEmployees.map(employee => (
+                <Marker key={employee.id} position={employee.location}>
+                  <Popup>
+                    <div className="p-2">
+                      <h4 className="font-bold">{employee.name}</h4>
+                      <p>Type: {employee.type}</p>
+                      <p>Tasks: {employee.tasks.join(', ')}</p>
+                    </div>
+                  </Popup>
+                </Marker>
+              ))}
+            </MapContainer>
+          </div>
+        </motion.div>
+
+        {/* Employee List */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-white rounded-2xl p-6 shadow-lg border border-[#E2E9F9]"
+        >
+          <h3 className="text-lg font-bold text-[#4786FA] mb-4">All Employees</h3>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Work Type</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tasks</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {employees.map(employee => (
+                  <tr key={employee.id}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{employee.name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        employee.type === 'hybrid' 
+                          ? 'bg-blue-100 text-blue-800' 
+                          : employee.type === 'onsite' 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {employee.type}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-500">{employee.tasks.join(', ')}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </motion.div>
       </div>
     );
@@ -423,13 +656,23 @@ const AdminDashboard = () => {
               </h1>
               <p className="text-gray-600 mt-1">Welcome back to your dashboard</p>
             </div>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              className="relative bg-[#4786FA] text-white p-3 rounded-xl shadow-lg"
-            >
-              <Bell size={20} />
-              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">3</span>
-            </motion.button>
+            <div className="flex items-center gap-4">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                onClick={generateEmployeeReport}
+                className="flex items-center gap-2 bg-[#4786FA] text-white px-4 py-2 rounded-xl shadow-lg"
+              >
+                <Download size={18} />
+                <span>Download Report</span>
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                className="relative bg-[#4786FA] text-white p-3 rounded-xl shadow-lg"
+              >
+                <Bell size={20} />
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">3</span>
+              </motion.button>
+            </div>
           </div>
         </motion.div>
 
