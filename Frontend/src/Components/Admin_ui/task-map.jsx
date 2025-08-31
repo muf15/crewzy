@@ -8,7 +8,12 @@ export default function TaskMap({ tasks, tempLocation, onPickLocation, focus }) 
   const [zoom, setZoom] = useState(5)
 
   useEffect(() => {
-    if (focus?.location) {
+    if (focus?.coordinates && focus.coordinates.length === 2) {
+      // Backend stores coordinates as [longitude, latitude] for MongoDB
+      setCenter([focus.coordinates[1], focus.coordinates[0]])
+      setZoom(13)
+    } else if (focus?.location) {
+      // Legacy format support
       setCenter([focus.location.lat, focus.location.lng])
       setZoom(13)
     }
@@ -29,18 +34,34 @@ export default function TaskMap({ tasks, tempLocation, onPickLocation, focus }) 
         }}
       >
         <ZoomControl />
-        {tasks.map((t) => (
-          <Marker
-            key={t.id}
-            width={36}
-            anchor={[t.location.lat, t.location.lng]}
-            color="#4786FA"
-            onClick={() => {
-              setCenter([t.location.lat, t.location.lng])
-              setZoom(14)
-            }}
-          />
-        ))}
+        {tasks.map((t) => {
+          // Handle both new coordinate format and legacy location format
+          let lat, lng
+          if (t.coordinates && t.coordinates.length === 2) {
+            // Backend coordinates are [longitude, latitude]
+            lng = t.coordinates[0]
+            lat = t.coordinates[1]
+          } else if (t.location) {
+            // Legacy format
+            lat = t.location.lat
+            lng = t.location.lng
+          } else {
+            return null // Skip if no valid location data
+          }
+
+          return (
+            <Marker
+              key={t._id || t.id}
+              width={36}
+              anchor={[lat, lng]}
+              color="#4786FA"
+              onClick={() => {
+                setCenter([lat, lng])
+                setZoom(14)
+              }}
+            />
+          )
+        })}
         {tempLocation ? <Marker width={38} anchor={[tempLocation.lat, tempLocation.lng]} color="#FA8747" /> : null}
       </Map>
       <div className="pointer-events-none absolute left-3 top-3 rounded-md bg-[#F4F7FF]/90 px-2 py-1 text-xs text-[#1f2a44]">

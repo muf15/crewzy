@@ -2,6 +2,7 @@ import express from "express";
 import companyRoutes from "./company.js";
 import authRoutes from "./auth.js";
 import locationRoutes from "./location.js";
+import taskRoutes from "./task.js";
 
 const router = express.Router();
 
@@ -13,5 +14,6 @@ router.get("/", (req, res) => {
 router.use("/company", companyRoutes);
 router.use("/auth", authRoutes);
 router.use("/location", locationRoutes);
+router.use("/task", taskRoutes);
 
 export default router;
